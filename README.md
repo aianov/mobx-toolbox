@@ -263,6 +263,8 @@ Function `useMobxForm` 3 params, need to create a form, have many options
 `inputResetErr` - Reset errors onChange input | initial `true`
 `validateAllOnChange` - Validating all inputs in form onChange | initial `false`
 `resetErrIfNoValue` - Reset err in current field if input have empty string | initial `true`
+`observableAnnotations` - Annotations for makeAutoObservable
+`observableOptions` - Options for makeAutoObservable
 
 ### Returns
 

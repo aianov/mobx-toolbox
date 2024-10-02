@@ -1,6 +1,6 @@
 import { makeAutoObservable } from 'mobx'
 import { AnnotationsMap } from 'mobx/dist/internal'
-import { FormStateOptions, MakeObservableOptions, MobxState, MobxStateWithGetterAndSetter, ValidationResult, Validator } from './types'
+import { FormStateOptions, FormValues, MakeObservableOptions, MobxState, MobxStateWithGetterAndSetter, ValidationResult, Validator } from './types'
 import { ValidatorBuilder } from './validators'
 
 /**
@@ -157,7 +157,7 @@ class FormState<T> {
 		this.validationSchema = validationSchema
 		this.options = options
 
-		makeAutoObservable(this)
+		makeAutoObservable(this, options.observableAnnotations || {}, options.observableOptions || {})
 	}
 
 	setValue = (field: string, value: T[keyof T]) => {
@@ -237,7 +237,7 @@ class FormState<T> {
  *
  * @param initialValues - обьект с ключами для инпутов
  * @param schema - объект схемы с настройками валидаций
- * @param options - дополнительные опции для формы
+ * @param options - дополнительные опции для формы а так-же для makeAutoObservable
  * 
  * `instaValidate` отвечает за мгновенную валидацию при наборе в инпут, по умолчанию true
  * 
@@ -247,6 +247,10 @@ class FormState<T> {
  * 
  * `resetErrIfNoValue` очищает ошибку если инпут пустой, по умолчанию true
  * 
+ * `observableAnnotations` - аннотации для makeAutoObservable
+ * 
+ * `observableOptions` - настройки для makeAutoObservable
+ * 
  */
 export function useMobxForm<T>(
 	initialValues: FormValues<T>,
@@ -255,13 +259,11 @@ export function useMobxForm<T>(
 		instaValidate: true,
 		inputResetErr: true,
 		validateAllOnChange: false,
-		resetErrIfNoValue: true
-	}
+		resetErrIfNoValue: true,
+		observableAnnotations: {},
+		observableOptions: {}
+	},
 ) {
 	return new FormState<T>(initialValues, validationSchema, options)
 }
 export const m = new ValidationSchema()
-
-type FormValues<T> = {
-	[K in keyof T]: T[K]
-}

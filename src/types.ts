@@ -1,5 +1,5 @@
 import { IEqualsComparer } from 'mobx'
-import { Annotation } from 'mobx/dist/internal'
+import { Annotation, AnnotationsMap } from 'mobx/dist/internal'
 
 // ========================== MOBX STATE ==============================
 
@@ -11,15 +11,18 @@ export type MakeObservableOptions = Omit<CreateObservableOptions, 'proxy'>
 
 // ========================== USE VALIDATION ==============================
 
+export type Validator = (value: any) => boolean | string
+export interface SchemaOptions { message?: string }
+export type FormValues<T> = { [K in keyof T]: T[K] }
 export interface FormStateOptions {
 	instaValidate?: boolean
 	inputResetErr?: boolean
 	validateAllOnChange?: boolean
 	resetErrIfNoValue?: boolean
+	observableAnnotations?: AnnotationsMap<MobxState, never>
+	observableOptions?: MakeObservableOptions
 }
-export type Validator = (value: any) => boolean | string
 export type ValidationResult = {
 	success: boolean
 	errors: Record<string, string>
 }
-export interface SchemaOptions { message?: string }
