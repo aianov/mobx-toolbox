@@ -251,11 +251,11 @@ Function `useMobxForm` 3 params, need to create a form, have many options
 
 ### Params
 
-| Param              | Type                        | Description                 | Initial         | Required |
-| ------------------ | --------------------------- | --------------------------- | --------------- | -------- |
-| `initialValues`    | `Object`                    | Object with keys for inputs | initial `true`  | `true`   |
-| `validationSchema` | `any`                       | Your created schema         | initial `true`  | `true`   |
-| `options`          | `Partial<FormStateOptions>` | Options to form             | initial `false` | `false`  |
+| Param              | Type                        | Description                 | Required |
+| ------------------ | --------------------------- | --------------------------- | -------- |
+| `initialValues`    | `Object`                    | Object with keys for inputs | `true`   |
+| `validationSchema` | `any`                       | Your created schema         | `true`   |
+| `options`          | `Partial<FormStateOptions>` | Options to form             | `false`  |
 
 ### options: Partial<FormStateOptions>:
 
@@ -263,8 +263,8 @@ Function `useMobxForm` 3 params, need to create a form, have many options
 `inputResetErr` - Reset errors onChange input | initial `true`
 `validateAllOnChange` - Validating all inputs in form onChange | initial `false`
 `resetErrIfNoValue` - Reset err in current field if input have empty string | initial `true`
-`observableAnnotations` - Annotations for makeAutoObservable
-`observableOptions` - Options for makeAutoObservable
+`observableAnnotations` - Annotations for makeAutoObservable | initial `{}`
+`observableOptions` - Options for makeAutoObservable | initial `{}`
 
 ### Returns
 
