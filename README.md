@@ -150,7 +150,9 @@ Function `mobxState` 3 params, and 1 return param, need to create getter and set
 | `(returns_name)`    | `Key`                                       | your value            |
 | `set(returns_name)` | `() => newValue or (prevValue) => newValue` | your setter for value |
 
-# useMobxForm (like RHF + Zod, but this is MobX xD)
+# -----------------------------
+
+# useMobxForm (like RHF + Zod, but this is MobX)
 
 ## Create scheme
 
@@ -260,6 +262,7 @@ Function `useMobxForm` 3 params, need to create a form, have many options
 `instaValidate` - Instantly validates form onChange input | initial `true`
 `inputResetErr` - Reset errors onChange input | initial `true`
 `validateAllOnChange` - Validating all inputs in form onChange | initial `false`
+`resetErrIfNoValue` - Reset err in current field if input have empty string | initial `true`
 
 ### Returns
 
@@ -273,6 +276,60 @@ Function `useMobxForm` 3 params, need to create a form, have many options
 | `setError`      | `(key, value) => void`          | Set your errors                                     |               |
 | `setValue`      | `(key, value) => void`          | Set your values                                     |               |
 | `validate`      | `() => boolean`                 | Validate you values and returns `true` if no errors |               |
+
+# -----------------------------
+
+# Schemas for useMobxForm
+
+## Usage
+
+```typescript
+// CREATING SCHEME
+export const orderFormSchema = m.schema({
+	name: m
+		.reset()
+		.required({ message: 'This is required' })
+		.string({ message: 'стринги' })
+		.minLength(3, { message: '3 min bro' })
+		.maxLength(6, { message: '6 max bro' })
+		.build(),
+	description: m
+		.reset()
+		.required({ message: 'Bro?...' })
+		.string({ message: 'стринги' })
+		.minLength(4, { message: '4 min bro' })
+		.maxLength(7, { message: '7 max bro' })
+		.build(),
+})
+```
+
+.reset() required to be in the beginning, and .build() required to be at the end
+
+## U can pick and extend validation keys from sheme
+
+```typescript
+// pick function, u need to pass keys as a string array
+export const signScheme = emailScheme.pick(['email', 'password'])
+```
+
+```typescript
+export const emailScheme = m.schema({
+	email: m
+		.reset()
+		.required({ message: 'Please write mail' })
+		.regex(emailRegex, { message: 'Write correct mail' })
+		.build(),
+})
+
+// extend function, just like extends from classes :P
+export const signScheme = emailScheme.extend({
+	password: m
+		.reset()
+		.required({ message: 'Please write password' })
+		.minLength(6, { message: 'Min length of password, 6 bytes' })
+		.build(),
+})
+```
 
 # REPO
 

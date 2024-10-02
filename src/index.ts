@@ -7,8 +7,6 @@ import { ValidatorBuilder } from './validators'
  * Создает MobX состояние с геттером, сеттером, поддержкой кастомных декораторов и настроек.
  * 
  * Телеграм: https://t.me/nics51
- * 
- * Репозиторий: https://github.com/aianov/mobx-state-lib
  *
  * Первый вызов функции — передача начального значения состояния и опций MobX.
  * Второй вызов — передача имени состояния (ключа), который будет динамически создан.
@@ -53,8 +51,6 @@ class ValidationSchema extends ValidatorBuilder {
  * Используется для валидации ваших ключей инпута.
  * 
  * Телеграм: https://t.me/nics51
- * 
- * Репозиторий: https://github.com/aianov/mobx-state-lib
  *
  * @example
  * // Создаем cхему
@@ -72,6 +68,48 @@ class ValidationSchema extends ValidatorBuilder {
 		const schema = new ValidationSchema()
 		schema.validators = validators
 		return schema
+	}
+
+	/**
+	  * Добавляет новые валидаторы к существующей схеме.
+	  * 
+	  * Телеграм: https://t.me/nics51 
+	  * 
+	  * @param newValidators - новый набор валидаторов для добавления
+	  * @param override - если true, то переопределяет существующие валидаторы
+	  * @returns {ValidationSchema} - обновленная схема
+	  * 
+	  */
+	extend(newValidators: Record<string, Validator[]>, override: boolean = false): ValidationSchema {
+		for (const field in newValidators) {
+			if (override || !this.validators[field]) {
+				this.validators[field] = newValidators[field]
+			} else {
+				this.validators[field] = this.validators[field].concat(newValidators[field])
+			}
+		}
+		return this
+	}
+
+	/**
+	  * Выбирает только определенные ключи из схемы
+	  * 
+	  * Телеграм: https://t.me/nics51 
+	  * 
+	  * @param keys - массив ключей, которые нужно выбрать из схемы
+	  * @returns {ValidationSchema} - новая схема с выбранными ключами
+	  * 
+	  */
+	pick(keys: string[]): ValidationSchema {
+		const pickedValidators: Record<string, Validator[]> = {}
+
+		for (const key of keys) {
+			if (this.validators[key]) {
+				pickedValidators[key] = this.validators[key]
+			}
+		}
+
+		return this.schema(pickedValidators)
 	}
 
 	validate(values: Record<string, any>): ValidationResult {
@@ -118,6 +156,7 @@ class FormState<T> {
 		this.values = initialValues
 		this.validationSchema = validationSchema
 		this.options = options
+
 		makeAutoObservable(this)
 	}
 
@@ -131,6 +170,7 @@ class FormState<T> {
 			if (this.options.validateAllOnChange) this.errors = error.errors as FormErrors<T>
 			else this.errors = { ...this.errors, [field + 'Err']: error.errors[field + 'Err'] }
 		}
+		if (value == '' && this.options.resetErrIfNoValue) this.errors = { ...this.errors, [field + 'Err']: '' }
 	};
 
 	setError(field: keyof T, error: string) {
@@ -142,8 +182,6 @@ class FormState<T> {
  * Возвращает все инпуты к начальному состоянию
  * 
  * Телеграм: https://t.me/nics51
- * 
- * Репозиторий: https://github.com/aianov/mobx-state-lib
  *
  */
 	reset() {
@@ -155,8 +193,6 @@ class FormState<T> {
  * Отвечает за валидацию ключей, ошибки записывает в errors, отдает true или false если валидация с ошибками или без
  * 
  * Телеграм: https://t.me/nics51
- * 
- * Репозиторий: https://github.com/aianov/mobx-state-lib
  *
  * @example
  * this.orderForm.validate() // true | false если валидация успешна
@@ -179,8 +215,6 @@ class FormState<T> {
  * Создает обьект со всеми нужными настройками для управления формой, инпутами и ошибками.
  * 
  * Телеграм: https://t.me/nics51
- * 
- * Репозиторий: https://github.com/aianov/mobx-state-lib
  *
  * @example
  * // Создаем форму
@@ -210,11 +244,19 @@ class FormState<T> {
  * `inputResetErr` отвечает за мгновенное очищение ошибок при наборе в инпут, по умолчанию true
  * 
  * `validateAllOnChange` работает только если instaValidate true, она работает так что валидирует абсолютно все инпуты даже если юзер пишет в одном, по умолчанию false
+ * 
+ * `resetErrIfNoValue` очищает ошибку если инпут пустой, по умолчанию true
+ * 
  */
 export function useMobxForm<T>(
 	initialValues: FormValues<T>,
 	validationSchema: ValidationSchema,
-	options: Partial<FormStateOptions> = { instaValidate: true, inputResetErr: true }
+	options: Partial<FormStateOptions> = {
+		instaValidate: true,
+		inputResetErr: true,
+		validateAllOnChange: false,
+		resetErrIfNoValue: true
+	}
 ) {
 	return new FormState<T>(initialValues, validationSchema, options)
 }

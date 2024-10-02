@@ -4,11 +4,9 @@ export class ValidatorBuilder {
 	private validator: Validator[] = [];
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Уточняет, что данное поле обязательно к заполнению.
+	 * 
+	 * Телеграм: https://t.me/nics51
 	 * 
 	 * @example
 	 * .required({ message: "This field is required." })
@@ -21,11 +19,9 @@ export class ValidatorBuilder {
 	}
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Проверяет, что значение является строкой.
+	 * 
+	 * Телеграм: https://t.me/nics51
 	 * 
 	 * @example
 	 * .string({ message: "Value must be string" })
@@ -38,11 +34,9 @@ export class ValidatorBuilder {
 	}
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Проверяет минимальную длину строки.
+	 * 
+	 * Телеграм: https://t.me/nics51
 	 * 
 	 * @example
 	 * .minLength(5, { message: "Minimum length is 5 characters." })
@@ -57,11 +51,9 @@ export class ValidatorBuilder {
 	}
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Проверяет максимальную длину строки.
+	 * 
+	 * Телеграм: https://t.me/nics51
 	 * 
 	 * @example
 	 * .maxLength(5, { message: "Maximum length is 5 characters." })
@@ -76,11 +68,9 @@ export class ValidatorBuilder {
 	}
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Проверяет, соответствует ли значение заданному регулярному выражению.
+	 * 
+	 * Телеграм: https://t.me/nics51
 	 * 
 	 * @example
 	 * .regex(/^[a-z]+$/, { message: "Must match the pattern." })
@@ -96,11 +86,9 @@ export class ValidatorBuilder {
 	}
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Проверяет, является ли значение допустимым адресом электронной почты.
+	 * 
+	 * Телеграм: https://t.me/nics51
 	 * 
 	 * @example
 	 * .email({ message: "Must be a valid email address." })
@@ -117,11 +105,9 @@ export class ValidatorBuilder {
 	}
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Проверяет, является ли значение допустимым URL.
+	 * 
+	 * Телеграм: https://t.me/nics51
 	 * 
 	 * @example
 	 * .url({ message: "Must be a valid URL." })
@@ -140,11 +126,9 @@ export class ValidatorBuilder {
 	// ========================== NUM VALIDATIONS ==============================
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Проверяет, что значение не меньше заданного.
+	 * 
+	 * Телеграм: https://t.me/nics51
 	 * 
 	 * @example
 	 * .minValue(10, { message: "Value must be at least 10." })
@@ -162,11 +146,9 @@ export class ValidatorBuilder {
 	}
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Проверяет, что значение не больше заданного.
+	 * 
+	 * Телеграм: https://t.me/nics51
 	 * 
 	 * @example
 	 * .maxValue(100, { message: "Value must be no more than 100." })
@@ -184,11 +166,9 @@ export class ValidatorBuilder {
 	}
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Проверяет, что значение равно заданному значению.
+	 * 
+	 * Телеграм: https://t.me/nics51
 	 * 
 	 * @example
 	 * .equal("value", { message: "Values must be equal." })
@@ -204,11 +184,9 @@ export class ValidatorBuilder {
 	}
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Проверяет, что значение является большим целым числом (bigint).
+	 * 
+	 * Телеграм: https://t.me/nics51
 	 * 
 	 * @example
 	 * .bigint({ message: "Must be a big integer." })
@@ -223,11 +201,9 @@ export class ValidatorBuilder {
 	}
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Проверяет, что значение является целым числом (integer).
+	 * 
+	 * Телеграм: https://t.me/nics51
 	 * 
 	 * @example
 	 * .int({ message: "Must be an integer." })
@@ -242,11 +218,9 @@ export class ValidatorBuilder {
 	}
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Проверяет, что значение является числом с плавающей запятой (float).
+	 * 
+	 * Телеграм: https://t.me/nics51
 	 * 
 	 * @example
 	 * .float({ message: "Must be a valid number." })
@@ -263,11 +237,9 @@ export class ValidatorBuilder {
 	// ========================== DATE VALIDATIONS ==============================
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Проверяет, что значение равно заданной дате.
+	 * 
+	 * Телеграм: https://t.me/nics51
 	 * 
 	 * @example
 	 * .dateEqual(new Date('2023-01-01'), { message: "Dates must be equal." })
@@ -286,11 +258,9 @@ export class ValidatorBuilder {
 	}
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Проверяет, что значение является допустимой датой.
+	 * 
+	 * Телеграм: https://t.me/nics51
 	 * 
 	 * @example
 	 * .isDate({ message: "Must be a valid date." })
@@ -306,11 +276,9 @@ export class ValidatorBuilder {
 	}
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Проверяет, что дата находится в прошлом.
+	 * 
+	 * Телеграм: https://t.me/nics51
 	 * 
 	 * @example
 	 * .isPast({ message: "Date must be in the past." })
@@ -326,11 +294,9 @@ export class ValidatorBuilder {
 	}
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Проверяет, что дата находится в будущем.
+	 * 
+	 * Телеграм: https://t.me/nics51
 	 * 
 	 * @example
 	 * .isFuture({ message: "Date must be in the future." })
@@ -348,27 +314,20 @@ export class ValidatorBuilder {
 	// ========= BUILDER REQUIRED ============
 
 	/**
-	 * Телеграм: https://t.me/nics51
-	 * 
-	 * Репозиторий: https://github.com/aianov/mobx-toolkit
-	 *
 	 * Обязателен в конце каждого ключа схемы!
 	 * 
-	 * @example
-	 * .build()
+	 * Телеграм: https://t.me/nics51
 	 * 
-	 * @param none - параметров нет.
 	 */
 	build(): Validator[] {
 		return this.validator
 	}
 
 	/**
-	 * Сбрасывает валидаторы, позволяя начать с чистого состояния.
-	 * 
 	 * Всегда должно быть в начале валидаций ключа в схеме!
 	 * 
-	 * @param none - параметров нет.
+	 * Телеграм: https://t.me/nics51
+	 * 
 	 */
 	reset(): this {
 		this.validator = []
