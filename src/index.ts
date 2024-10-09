@@ -1,6 +1,6 @@
 import { makeAutoObservable } from 'mobx'
 import { AnnotationsMap } from 'mobx/dist/internal'
-import { FormStateOptions, FormValues, MakeObservableOptions, MobxState, MobxStateWithGetterAndSetter, ValidationResult, Validator } from './types'
+import { FormErrors, FormStateOptions, FormValues, MakeObservableOptions, MobxState, MobxStateWithGetterAndSetter, ValidationResult, Validator } from './types'
 import { ValidatorBuilder } from './validators'
 
 /**
@@ -55,8 +55,16 @@ class ValidationSchema extends ValidatorBuilder {
  * @example
  * // Создаем cхему
  * export const orderFormSchema = m.schema({
- * 	name: m.required().string().minLength(3, { message: 'Name must be at least 3 characters long' }).build(),
- * 	description: m.required({ message: 'Please provide a description' }).string().minLength(10).build()
+ * 	name: m.reset()
+ * 		.required()
+ * 		.string()
+ * 		.minLength(3, { message: 'Name must be at least 3 characters long' })
+ * 		.build(),
+ * 	description: m.reset()
+ * 		.required({ message: 'Please provide a description' })
+ * 		.string()
+ * 		.minLength(10)
+ * 		.build()
  * })
  * 
  * Схема может быть переиспользована и используется для функции useMobxForm
@@ -75,6 +83,15 @@ class ValidationSchema extends ValidatorBuilder {
 	  * 
 	  * Телеграм: https://t.me/nics51 
 	  * 
+	  * @example
+	  * export const newScheme = signScheme.extend({
+	  * 	newKey: // your new validations + signScheme validations
+	  * })
+	  * 
+	  * Так-же вторым параметром идет override который по умолчанию false.
+	  * Если override true то старый ключ из родителя будет удален и заменен новым ключем если они имеют одинаковое наименование.
+	  * Если же override false то валидаторы в новом и старом ключе будут объединены.
+	  * 
 	  * @param newValidators - новый набор валидаторов для добавления
 	  * @param override - если true, то переопределяет существующие валидаторы
 	  * @returns {ValidationSchema} - обновленная схема
@@ -82,11 +99,8 @@ class ValidationSchema extends ValidatorBuilder {
 	  */
 	extend(newValidators: Record<string, Validator[]>, override: boolean = false): ValidationSchema {
 		for (const field in newValidators) {
-			if (override || !this.validators[field]) {
-				this.validators[field] = newValidators[field]
-			} else {
-				this.validators[field] = this.validators[field].concat(newValidators[field])
-			}
+			if (override || !this.validators[field]) this.validators[field] = newValidators[field]
+			else this.validators[field] = this.validators[field].concat(newValidators[field])
 		}
 		return this
 	}
@@ -134,18 +148,13 @@ class ValidationSchema extends ValidatorBuilder {
 	}
 }
 
-type FormErrors<T> = {
-	[K in keyof T]: string
-} & {
-	[K in keyof T as `${K & string}Err`]: string
-}
-
 class FormState<T> {
 	values: FormValues<T>
 	errors: FormErrors<T> = {} as FormErrors<T>
 	validationSchema: ValidationSchema
 	options: Partial<FormStateOptions> = { instaValidate: true, validateAllOnChange: false, inputResetErr: true }
 	initialValues: FormValues<T>
+	disabled: boolean = false
 
 	constructor(
 		initialValues: FormValues<T>,
@@ -156,10 +165,17 @@ class FormState<T> {
 		this.values = initialValues
 		this.validationSchema = validationSchema
 		this.options = options
+		if (options.disabled) this.disabled = options.disabled
 
 		makeAutoObservable(this, options.observableAnnotations || {}, options.observableOptions || {})
 	}
 
+	/**
+ * Сеттер значений
+ * 
+ * Телеграм: https://t.me/nics51
+ *
+ */
 	setValue = (field: string, value: T[keyof T]) => {
 		this.values[field as keyof T] = value
 
@@ -167,12 +183,22 @@ class FormState<T> {
 		if (this.options.inputResetErr) this.errors[`${field}Err`] = ''
 		if (this.options.instaValidate) {
 			const error = this.validationSchema.validate(this.values)
+			this.disabled = !error.success
 			if (this.options.validateAllOnChange) this.errors = error.errors as FormErrors<T>
 			else this.errors = { ...this.errors, [field + 'Err']: error.errors[field + 'Err'] }
 		}
-		if (value == '' && this.options.resetErrIfNoValue) this.errors = { ...this.errors, [field + 'Err']: '' }
+		if (value == '' && this.options.resetErrIfNoValue) {
+			this.errors = { ...this.errors, [field + 'Err']: '' }
+			this.disabled = this.disabled = Object.values(this.errors).some(error => error !== '')
+		}
 	};
 
+	/**
+ * Сеттер ошибок
+ * 
+ * Телеграм: https://t.me/nics51
+ *
+ */
 	setError(field: keyof T, error: string) {
 		// @ts-ignore
 		this.errors[`${field}Err`] = error || ''
@@ -204,6 +230,8 @@ class FormState<T> {
 		const result: ValidationResult = this.validationSchema.validate(this.values)
 		if (!result.success) this.errors = result.errors as FormErrors<T>
 		else this.errors = {} as FormErrors<T>
+
+		this.disabled = !result.success
 
 		return result.success
 	}
@@ -260,10 +288,25 @@ export function useMobxForm<T>(
 		inputResetErr: true,
 		validateAllOnChange: false,
 		resetErrIfNoValue: true,
+		disabled: false,
 		observableAnnotations: {},
 		observableOptions: {}
 	},
 ) {
 	return new FormState<T>(initialValues, validationSchema, options)
 }
+
+/**
+ * От этой фунции можно создать схемы и валидации :)
+ * 
+ * Телеграм: https://t.me/nics51
+ * 
+ * @example
+ * export const signScheme = m.scheme({
+ * 	email: m.reset()
+ * 		.required()
+ * 		.build()
+ * })
+ *
+ */
 export const m = new ValidationSchema()

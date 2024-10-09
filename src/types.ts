@@ -12,13 +12,15 @@ export type MakeObservableOptions = Omit<CreateObservableOptions, 'proxy'>
 // ========================== USE VALIDATION ==============================
 
 export type Validator = (value: any) => boolean | string
-export interface SchemaOptions { message?: string }
 export type FormValues<T> = { [K in keyof T]: T[K] }
+export type FormErrors<T> = { [K in keyof T]: string } & { [K in keyof T as `${K & string}Err`]: string }
+export interface SchemaOptions { message?: string }
 export interface FormStateOptions {
 	instaValidate?: boolean
 	inputResetErr?: boolean
 	validateAllOnChange?: boolean
 	resetErrIfNoValue?: boolean
+	disabled?: boolean
 	observableAnnotations?: AnnotationsMap<MobxState, never>
 	observableOptions?: MakeObservableOptions
 }

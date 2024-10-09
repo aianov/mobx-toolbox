@@ -263,21 +263,23 @@ Function `useMobxForm` 3 params, need to create a form, have many options
 `inputResetErr` - Reset errors onChange input | initial `true`
 `validateAllOnChange` - Validating all inputs in form onChange | initial `false`
 `resetErrIfNoValue` - Reset err in current field if input have empty string | initial `true`
+`disabled` - Disable state | initial `false`
 `observableAnnotations` - Annotations for makeAutoObservable | initial `{}`
 `observableOptions` - Options for makeAutoObservable | initial `{}`
 
 ### Returns
 
-| Param           | Type                            | Description                                         | Initial       |
-| --------------- | ------------------------------- | --------------------------------------------------- | ------------- |
-| `values`        | `Object`                        | Your current values                                 |               |
-| `errors`        | `Object`                        | Your errors here, with key+'Err'                    |               |
-| `initialValues` | `Object`                        | Your passed initial values DOESN'T CHANGE           |               |
-| `options`       | `Partial<FormStateOptions>`     | Your passed form options                            |               |
-| `reset`         | `'all' or 'values' or 'errors'` | Resets what u need                                  | initial `all` |
-| `setError`      | `(key, value) => void`          | Set your errors                                     |               |
-| `setValue`      | `(key, value) => void`          | Set your values                                     |               |
-| `validate`      | `() => boolean`                 | Validate you values and returns `true` if no errors |               |
+| Param           | Type                            | Description                                         | Initial         |
+| --------------- | ------------------------------- | --------------------------------------------------- | --------------- |
+| `values`        | `Object`                        | Your current values                                 |                 |
+| `errors`        | `Object`                        | Your errors here, with key+'Err'                    |                 |
+| `initialValues` | `Object`                        | Your passed initial values DOESN'T CHANGE           |                 |
+| `disabled`      | `boolean`                       | Disable state for inputs or something else          | initial `false` |
+| `options`       | `Partial<FormStateOptions>`     | Your passed form options                            |                 |
+| `reset`         | `'all' or 'values' or 'errors'` | Resets what u need                                  | initial `all`   |
+| `setError`      | `(key, value) => void`          | Set your errors                                     |                 |
+| `setValue`      | `(key, value) => void`          | Set your values                                     |                 |
+| `validate`      | `() => boolean`                 | Validate you values and returns `true` if no errors |                 |
 
 # -----------------------------
 
@@ -331,6 +333,14 @@ export const signScheme = emailScheme.extend({
 		.minLength(6, { message: 'Min length of password, 6 bytes' })
 		.build(),
 })
+
+// extend also have second param, override with initial state false, if override is false your validations in same keys will be connected to one, if override is true, then only validations from the new key will be setted
+export const newScheme = someScheme.extend(
+	{
+		// validations
+	},
+	true
+)
 ```
 
 # REPO
