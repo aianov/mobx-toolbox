@@ -28,3 +28,45 @@ export type ValidationResult = {
 	success: boolean
 	errors: Record<string, string>
 }
+
+// ========================== USE MOBX UPDATER ==============================
+
+export type Identifiable = { id: string | number }
+export type NestedKeyOf<T> = T extends object
+	? {
+		[K in keyof T]: K extends string | number
+		? T[K] extends (infer U)[]
+		? `${K}` | `${K}[${number}]` | `${K}[${number}].${NestedKeyOf<U>}`
+		: `${K}` | `${K}.${NestedKeyOf<T[K]>}`
+		: any
+	}[keyof T]
+	: any
+
+export type GetTypeFromKey<T, K extends NestedKeyOf<T>> =
+	K extends `${infer Key}.${infer Rest}`
+	? Key extends keyof T
+	? Rest extends NestedKeyOf<T[Key]>
+	? GetTypeFromKey<T[Key], Rest>
+	: T[Key]
+	: K extends `${infer Key}[${infer _Index}].${infer Rest}`
+	? Key extends keyof T
+	? T[Key] extends (infer U)[]
+	? Rest extends NestedKeyOf<U>
+	? GetTypeFromKey<U, Rest>
+	: U
+	: any
+	: any
+	: any
+	: K extends `${infer Key}[${infer _Index}]`
+	? Key extends keyof T
+	? T[Key] extends (infer U)[]
+	? U
+	: any
+	: any
+	: K extends keyof T
+	? T[K]
+	: any
+
+export type UpdaterT<T, K extends NestedKeyOf<T>> =
+	| ((prevValue: GetTypeFromKey<T, K>) => GetTypeFromKey<T, K>)
+	| GetTypeFromKey<T, K>

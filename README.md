@@ -1,8 +1,138 @@
 # Mobx-toolkit, mini-lib for easy in MobX using
 
+# useMobxUpdate
+
+`useMobxUpdate` can reduce your code by 2/3+ times, depending on the volume of your functionality
+
+## Usage
+
+```typescript
+// SomeComponent.tsx
+const { commentsList } = commentsStore // store from MobX
+const updateComments = useMobxUpdate(commentsList)
+
+return (
+	<div>
+		{commentsList.map(comment => (
+			<button
+				key={comment.id}
+				onClick={() => {
+					updateComments(
+						comment.id, // id
+						'likes', // path to update
+						prev => prev + 1 // update callback [! DONT USER prev++ !]
+					)
+				}}
+			>
+				{comment.likes} // will update
+			</button>
+		))}
+	</div>
+)
+```
+
+## Usage #2
+
+### You can export your updater and use it EVERYWHERE!
+
+```typescript
+export const updateComment = useMobxUpdate(commentsStore.commentsList)
+```
+
+# Code with useMobxUpdate vs Code without useMobxUpdate
+
+## Code without useMobxUpdate:
+
+```typescript
+// SomeComponent.tsx
+export const SomeComponents = ({ comment }) => {
+	const [likes, setLikes] = useState(comment.likes)
+	const [dislikes, setDislikes] = useState(comment.dislikes)
+	const [replies, setReplies] = useState(comment.replies)
+
+	return (
+		<div>
+			<span>{likes}</span>
+			<span>{dislikes}</span>
+			<span>{replies}</span>
+
+			<AnotherComponent
+				comment={comment}
+				setLikes={setLikes}
+				setDislikes={setDislikes}
+				setReplies={setReplies}
+			/>
+
+			<button
+				onClick={() => {
+					setLikes(prev => prev + 1)
+					setDislikes(prev => prev + 1)
+					setReplies(prev => prev + 1)
+				}}
+			>
+				Update states
+			</button>
+		</div>
+	)
+}
+```
+
+## Code with useMobxUpdate:
+
+```typescript
+// Updaters.ts
+export const updateComment = useMobxUpdate(commentsStore.commentsList)
+
+// SomeComponent.tsx
+import { updateComment } from 'path-to-updater'
+
+export const SomeComponents = observer(({ comment }) => {
+	return (
+		<div>
+			<span>{comment.likes}</span>
+			<span>{comment.dislikes}</span>
+			<span>{comment.replies)}</span>
+
+			<AnotherComponent comment={comment} /> // you don't need to provide useState, update EVERYWHERE!
+
+			<button
+				onClick={() => {
+					updateComment(comment.id, "likes", prev => prev + 1)
+					updateComment(comment.id, "dislikes", prev => prev + 1)
+					updateComment(comment.id, "replies", prev => prev + 1)
+				}}
+			>
+				Update states
+			</button>
+		</div>
+	)
+})
+```
+
+# Options
+
+## `useMobxUpdate`
+
+Function `useMobxUpdate` 2 params, needs to update values in current element of array from mobx store
+
+### Params
+
+| Param         | Type             | Description                     | Initial | Required |
+| ------------- | ---------------- | ------------------------------- | ------- | -------- |
+| `array`       | `Array`          | Array from mobx store           |         | `true`   |
+| `annotations` | `AnnotationsMap` | makeAutoObservable second param | `{}`    | `false`  |
+
+### Returns
+
+| Param      | Type                                                                                | Description  |
+| ---------- | ----------------------------------------------------------------------------------- | ------------ |
+| `Function` | `(id: string or number, path: string, updater: (prev: any) => void or any) => void` | your updater |
+
+# -----------------------------
+
 # mobxState (like useState)
 
-## Instructions
+## Usage
 
 ```typescript
 // counter-store.ts
@@ -47,22 +177,9 @@ class Counter {
 }
 ```
 
-## You can use MobX annotations and options in makeAutoObservable, because our lib just creating another observable store
+# Without mobxState VS With mobxState
 
-```typescript
-class Counter {
-	constructor() {
-		makeAutoObservable(this)
-	}
-
-	count = mobxState(1, { count: observable.ref }, { deep: true })('count')
-	// u need to write name 'count', sorry about that ;)
-}
-```
-
-# Without mobx-state-lib VS with mobx-state-lib
-
-## Code without mobx-state-lib:
+## Code without mobxState:
 
 ```typescript
 // posts-store.ts
@@ -95,7 +212,7 @@ const {
 </div>
 ```
 
-## Code with mobx-state-lib
+## Code with mobxState
 
 ```typescript
 // posts-store.ts
@@ -127,7 +244,7 @@ const {
 
 ## `mobxState`
 
-Function `mobxState` 3 params, and 1 return param, need to create getter and setter logic
+Function `mobxState` 3 params, need to create getter and setter logic
 
 ### Params
 
@@ -137,11 +254,6 @@ Function `mobxState` 3 params, and 1 return param, need to create getter and set
 | `annotations`   | `AnnotationsMap`        | makeAutoObservable second param                     | `{}`    | `false`  |
 | `options`       | `MakeObservableOptions` | makeAutoObservable third param                      | `{}`    | `false`  |
 | `@returns_name` | `string`                | Name of state, to create set and get with your name |         | `true`   |
-
-### annotations: AnnotationsMap<MobxState, never>:
-
-`{ _@returns_name: observable. }` - Need to custom or not decarators to makeAutoObservable second param | initial `{}`
-`options` - Need to pass options to makeAutoObservable third param, name, equals, deep, proxy, autoBind | initial `{}`
 
 ### Returns
 
@@ -293,14 +405,14 @@ export const orderFormSchema = m.schema({
 	name: m
 		.reset()
 		.required({ message: 'This is required' })
-		.string({ message: 'стринги' })
+		.string({ message: 'Strings' })
 		.minLength(3, { message: '3 min bro' })
 		.maxLength(6, { message: '6 max bro' })
 		.build(),
 	description: m
 		.reset()
 		.required({ message: 'Bro?...' })
-		.string({ message: 'стринги' })
+		.string({ message: 'Strings' })
 		.minLength(4, { message: '4 min bro' })
 		.maxLength(7, { message: '7 max bro' })
 		.build(),

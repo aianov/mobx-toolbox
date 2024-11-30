@@ -1,46 +1,7 @@
 import { makeAutoObservable } from 'mobx'
 import { AnnotationsMap } from 'mobx/dist/internal'
-import { FormErrors, FormStateOptions, FormValues, MakeObservableOptions, MobxState, MobxStateWithGetterAndSetter, ValidationResult, Validator } from './types'
+import { FormErrors, FormStateOptions, FormValues, Identifiable, MakeObservableOptions, MobxState, MobxStateWithGetterAndSetter, NestedKeyOf, UpdaterT, ValidationResult, Validator } from './types'
 import { ValidatorBuilder } from './validators'
-
-/**
- * Создает MobX состояние с геттером, сеттером, поддержкой кастомных декораторов и настроек.
- * 
- * Телеграм: https://t.me/nics51
- *
- * Первый вызов функции — передача начального значения состояния и опций MobX.
- * Второй вызов — передача имени состояния (ключа), который будет динамически создан.
- *
- * @example
- * // Создаем состояние с начальным значением 0
- * const counter = mobxState(0)('counter');
- *
- * // Теперь можно использовать `counter.counter` для получения значения
- * и counter.setCounter(newValue | (prevValue) => newValue) для его изменения.
- * или const { counter: { counter, setCounter } } = counterStore.counter
- *
- * @param initialValue - начальное значение
- * @param annotations - объект аннотаций MobX, использовать как { переданное имя: observable... }
- * @param options - дополнительные опции для makeAutoObservable (например, autoBind, deep...)
- * @returns Функция, которая принимает параметр `name` и возвращает объект состояния с геттером и сеттером этого же `name`.
- */
-export function mobxState<T>(
-	initialValue: T,
-	annotations: AnnotationsMap<MobxState, never> = {},
-	options: MakeObservableOptions = {}
-): <K extends string>(name: K) => MobxStateWithGetterAndSetter<T, K> {
-	return function <K extends string>(name: K): MobxStateWithGetterAndSetter<T, K> {
-		const state: MobxState = {
-			[name]: initialValue,
-			[`set${name.charAt(0).toUpperCase() + name.slice(1)}`](newValue: T | ((prev: T) => T)): void {
-				if (typeof newValue === 'function') state[name] = (newValue as (prev: T) => T)(state[name])
-				else state[name] = newValue
-			},
-		}
-		makeAutoObservable(state, annotations, options)
-		return state as MobxStateWithGetterAndSetter<T, K>
-	}
-}
 
 // ========================== VALIDATION SCHEMA ==============================
 
@@ -237,7 +198,122 @@ class FormState<T> {
 	}
 }
 
+// ========================== USE MOBX UPDATER ==============================
+
+class MobxUpdater {
+	constructor(annotations: AnnotationsMap<MobxState, never> = {}) {
+		makeAutoObservable(this, annotations, { autoBind: true })
+	}
+
+	/** 
+	 * Метод для получения функции обновления для массива или объекта
+	 * 
+	 * @param arrayOrObject - Массив или объект, который нужно обновить.
+	 * @returns Функция для обновления состояния.
+	 */
+	getUpdater<T extends Identifiable>(arrayOrObject: T[] | Record<string, T>) {
+		return <K extends NestedKeyOf<T>>(
+			id: string | number,
+			key: K,
+			updater: UpdaterT<T, K>
+		) => {
+			this.updateState(arrayOrObject, id, key, updater)
+		}
+	}
+
+	/** 
+	 * Метод для обновления состояния элемента в массиве или объекте.
+	 * 
+	 * @param arrayOrObject - Массив или объект, который нужно обновить.
+	 * @param id - Идентификатор элемента для обновления.
+	 * @param key - Ключ или путь для обновления.
+	 * @param updater - Функция обновления или новое значение для обновления.
+	 */
+	updateState<T extends Identifiable, K extends NestedKeyOf<T>>(
+		arrayOrObject: T[] | Record<string, T>,
+		id: string | number,
+		key: K,
+		updater: UpdaterT<T, K>
+	) {
+		const item = Array.isArray(arrayOrObject)
+			? arrayOrObject.find((item) => item.id === id)
+			: arrayOrObject[id]
+
+		if (item) this.deepUpdate(item, key, updater)
+	}
+
+	/** 
+	 * Вспомогательный метод для выполнения глубокого обновления по пути.
+	 * 
+	 * @param obj - Объект, в котором нужно выполнить обновление.
+	 * @param key - Путь или ключ, по которому будет выполнено обновление.
+	 * @param updater - Функция или новое значение для обновления.
+	 */
+	private deepUpdate<T, K extends NestedKeyOf<T>>(
+		obj: T,
+		key: K,
+		updater: UpdaterT<T, K>
+	) {
+		const keys = key.split(".") as string[]
+		const lastKey = keys.pop() as string
+
+		const target = keys.reduce((acc, k) => {
+			if (k.includes("[")) {
+				const [arrayKey, index] = k.split(/\[|\]/).filter(Boolean)
+				return acc?.[arrayKey]?.[Number(index)]
+			}
+			return acc?.[k]
+		}, obj as any)
+
+		if (target && lastKey) {
+			if (typeof updater === "function") {
+				const prevValue = target[lastKey as keyof typeof target]
+				target[lastKey as keyof typeof target] = (updater as (prevValue: any) => any)(prevValue)
+			} else target[lastKey as keyof typeof target] = updater
+		}
+	}
+}
+
 // ========================== EXPORTS ==============================
+
+/**
+ * Создает MobX состояние с геттером, сеттером, поддержкой кастомных декораторов и настроек.
+ * 
+ * Телеграм: https://t.me/nics51
+ *
+ * Первый вызов функции — передача начального значения состояния и опций MobX.
+ * Второй вызов — передача имени состояния (ключа), который будет динамически создан.
+ *
+ * @example
+ * // Создаем состояние с начальным значением 0
+ * const counter = mobxState(0)('counter');
+ *
+ * // Теперь можно использовать `counter.counter` для получения значения
+ * и counter.setCounter(newValue | (prevValue) => newValue) для его изменения.
+ * или const { counter: { counter, setCounter } } = counterStore.counter
+ *
+ * @param initialValue - начальное значение
+ * @param annotations - объект аннотаций MobX, использовать как { переданное имя: observable... }
+ * @param options - дополнительные опции для makeAutoObservable (например, autoBind, deep...)
+ * @returns Функция, которая принимает параметр `name` и возвращает объект состояния с геттером и сеттером этого же `name`.
+ */
+export function mobxState<T>(
+	initialValue: T,
+	annotations: AnnotationsMap<MobxState, never> = {},
+	options: MakeObservableOptions = {}
+): <K extends string>(name: K) => MobxStateWithGetterAndSetter<T, K> {
+	return function <K extends string>(name: K): MobxStateWithGetterAndSetter<T, K> {
+		const state: MobxState = {
+			[name]: initialValue,
+			[`set${name.charAt(0).toUpperCase() + name.slice(1)}`](newValue: T | ((prev: T) => T)): void {
+				if (typeof newValue === 'function') state[name] = (newValue as (prev: T) => T)(state[name])
+				else state[name] = newValue
+			},
+		}
+		makeAutoObservable(state, annotations, options)
+		return state as MobxStateWithGetterAndSetter<T, K>
+	}
+}
 
 /**
  * Создает обьект со всеми нужными настройками для управления формой, инпутами и ошибками.
@@ -310,3 +386,35 @@ export function useMobxForm<T>(
  *
  */
 export const m = new ValidationSchema()
+
+/** 
+ * Функция для удобнейшего обновления состояния массива или объекта.
+ * (Работает только с массивами из MobX)
+ * 
+ * Телеграм: https://t.me/nics51
+ * 
+ * @example
+ * const updateComments = useMobxUpdate(commentsList)
+ * 
+ * onClick={() => {
+ * 	commentsUpdate(comment.id, "count", (prev) => prev+1) // prev++ НЕ РАБОТАЕТ
+ * }
+ * 
+ * Приятного использования ;)
+ * 
+ * @param arrayOrObject - Массив или объект, который нужно обновить.
+ * @param annotations - объект аннотаций MobX, использовать как { переданное имя: observable... }
+ * @returns Функция для обновления состояния элемента.
+ */
+export const useMobxUpdate = <T extends Identifiable>(
+	arrayOrObject: T[] | Record<string, T>,
+	annotations: AnnotationsMap<MobxState, never> = {},
+) => {
+	return <K extends NestedKeyOf<T>>(
+		id: string | number,
+		key: K,
+		updater: UpdaterT<T, K>
+	) => {
+		(new MobxUpdater(annotations)).updateState(arrayOrObject, id, key, updater)
+	}
+}
