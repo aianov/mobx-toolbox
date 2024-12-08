@@ -32,15 +32,20 @@ export type ValidationResult = {
 // ========================== USE MOBX UPDATER ==============================
 
 export type Identifiable = { id: string | number }
-export type NestedKeyOf<T> = T extends object
+
+export type NestedKeyOf<T, Depth extends number = 5> = Depth extends 0
+	? never
+	: T extends object
 	? {
 		[K in keyof T]: K extends string | number
 		? T[K] extends (infer U)[]
-		? `${K}` | `${K}[${number}]` | `${K}[${number}].${NestedKeyOf<U>}`
-		: `${K}` | `${K}.${NestedKeyOf<T[K]>}`
-		: any
+		? `${K}` | `${K}[${number}]` | `${K}[${number}].${NestedKeyOf<U, PrevDepth<Depth>>}`
+		: `${K}` | `${K}.${NestedKeyOf<T[K], PrevDepth<Depth>>}`
+		: never
 	}[keyof T]
-	: any
+	: never
+
+export type PrevDepth<N extends number> = [never, 0, 1, 2, 3, 4, 5][N]
 
 export type GetTypeFromKey<T, K extends NestedKeyOf<T>> =
 	K extends `${infer Key}.${infer Rest}`
