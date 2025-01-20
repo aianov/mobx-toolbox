@@ -243,12 +243,13 @@ class MobxUpdater {
 	}
 
 	/** 
-	 * Вспомогательный метод для выполнения глубокого обновления по пути.
-	 * 
-	 * @param obj - Объект, в котором нужно выполнить обновление.
-	 * @param key - Путь или ключ, по которому будет выполнено обновление.
-	 * @param updater - Функция или новое значение для обновления.
-	 */
+ * Вспомогательный метод для выполнения глубокого обновления по пути.
+ * Если путь или ключ отсутствует, они будут созданы.
+ * 
+ * @param obj - Объект, в котором нужно выполнить обновление.
+ * @param key - Путь или ключ, по которому будет выполнено обновление.
+ * @param updater - Функция или новое значение для обновления.
+ */
 	private deepUpdate<T, K extends NestedKeyOf<T>>(
 		obj: T,
 		key: K,
@@ -260,9 +261,12 @@ class MobxUpdater {
 		const target = keys.reduce((acc, k) => {
 			if (k.includes("[")) {
 				const [arrayKey, index] = k.split(/\[|\]/).filter(Boolean)
-				return acc?.[arrayKey]?.[Number(index)]
+				if (!acc[arrayKey]) acc[arrayKey] = []
+				if (!acc[arrayKey][Number(index)]) acc[arrayKey][Number(index)] = {}
+				return acc[arrayKey][Number(index)]
 			}
-			return acc?.[k]
+			if (!acc[k]) acc[k] = {}
+			return acc[k]
 		}, obj as any)
 
 		if (target && lastKey) {

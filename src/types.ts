@@ -33,7 +33,7 @@ export type ValidationResult = {
 
 export type Identifiable = { id: string | number }
 
-export type NestedKeyOf<T, Depth extends number = 5> = Depth extends 0
+export type NestedKeyOf<T, Depth extends number = 5> = [Depth] extends [never]
 	? never
 	: T extends object
 	? {
@@ -45,21 +45,26 @@ export type NestedKeyOf<T, Depth extends number = 5> = Depth extends 0
 	}[keyof T]
 	: never
 
-export type PrevDepth<N extends number> = [never, 0, 1, 2, 3, 4, 5][N]
+type PrevDepth<D extends number> = [
+	never, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+][D]
 
-export type GetTypeFromKey<T, K extends NestedKeyOf<T>> =
+export type AnyNestedKeyOf<T, Depth extends number = 5> =
+	NestedKeyOf<T, Depth> | string
+
+export type GetTypeFromKey<T, K extends AnyNestedKeyOf<T>> =
 	K extends `${infer Key}.${infer Rest}`
 	? Key extends keyof T
 	? Rest extends NestedKeyOf<T[Key]>
 	? GetTypeFromKey<T[Key], Rest>
 	: T[Key]
+	: any
 	: K extends `${infer Key}[${infer _Index}].${infer Rest}`
 	? Key extends keyof T
 	? T[Key] extends (infer U)[]
 	? Rest extends NestedKeyOf<U>
 	? GetTypeFromKey<U, Rest>
 	: U
-	: any
 	: any
 	: any
 	: K extends `${infer Key}[${infer _Index}]`
@@ -72,6 +77,6 @@ export type GetTypeFromKey<T, K extends NestedKeyOf<T>> =
 	? T[K]
 	: any
 
-export type UpdaterT<T, K extends NestedKeyOf<T>> =
+export type UpdaterT<T, K extends AnyNestedKeyOf<T>> =
 	| ((prevValue: GetTypeFromKey<T, K>) => GetTypeFromKey<T, K>)
 	| GetTypeFromKey<T, K>
