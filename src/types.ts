@@ -3,11 +3,11 @@ import { Annotation, AnnotationsMap } from 'mobx/dist/internal'
 
 // ========================== MOBX STATE ==============================
 
-export type CreateObservableOptions = { name?: string; equals?: IEqualsComparer<any>; deep?: boolean; defaultDecorator?: Annotation; proxy?: boolean; autoBind?: boolean }
-export interface MobxState { [key: string]: any }
+export type MobxStateWithGetterAndSetter<K extends string, T> = { [Value in K]: T } & SetterType<K, T>
 export type SetterType<K extends string, T> = { [SetterName in `set${Capitalize<K>}`]: (newValue: T | ((prev: T) => T)) => void }
-export type MobxStateWithGetterAndSetter<T, K extends string> = MobxState & { [Value in K]: T } & SetterType<K, T>
+export interface MobxStateOptions { reset?: boolean }
 export type MakeObservableOptions = Omit<CreateObservableOptions, 'proxy'>
+export type CreateObservableOptions = { name?: string; equals?: IEqualsComparer<any>; deep?: boolean; defaultDecorator?: Annotation; proxy?: boolean; autoBind?: boolean }
 
 // ========================== USE VALIDATION ==============================
 
@@ -15,24 +15,22 @@ export type Validator = (value: any) => boolean | string
 export type FormValues<T> = { [K in keyof T]: T[K] }
 export type FormErrors<T> = { [K in keyof T]: string } & { [K in keyof T as `${K & string}Err`]: string }
 export interface SchemaOptions { message?: string }
+export type ValidationResult = { success: boolean; errors: Record<string, string> }
 export interface FormStateOptions {
 	instaValidate?: boolean
 	inputResetErr?: boolean
 	validateAllOnChange?: boolean
 	resetErrIfNoValue?: boolean
 	disabled?: boolean
-	observableAnnotations?: AnnotationsMap<MobxState, never>
+	observableAnnotations?: AnnotationsMap<{ [key: string]: any }, never>
 	observableOptions?: MakeObservableOptions
-}
-export type ValidationResult = {
-	success: boolean
-	errors: Record<string, string>
 }
 
 // ========================== USE MOBX UPDATER ==============================
 
 export type Identifiable = { id: string | number }
-
+type PrevDepth<D extends number> = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10][D]
+export type AnyNestedKeyOf<T, Depth extends number = 5> = NestedKeyOf<T, Depth> | string
 export type NestedKeyOf<T, Depth extends number = 5> = [Depth] extends [never]
 	? never
 	: T extends object
@@ -44,13 +42,6 @@ export type NestedKeyOf<T, Depth extends number = 5> = [Depth] extends [never]
 		: never
 	}[keyof T]
 	: never
-
-type PrevDepth<D extends number> = [
-	never, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
-][D]
-
-export type AnyNestedKeyOf<T, Depth extends number = 5> =
-	NestedKeyOf<T, Depth> | string
 
 export type GetTypeFromKey<T, K extends AnyNestedKeyOf<T>> =
 	K extends `${infer Key}.${infer Rest}`

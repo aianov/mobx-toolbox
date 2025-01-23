@@ -177,6 +177,14 @@ class Counter {
 }
 ```
 
+## You can also use mobxState without "clear" functions
+
+### Just use { reset: true } option, you state will be clear only if your state unobserved
+
+```typescript
+count = mobxState(0)('count', { reset: true })
+```
+
 # Without mobxState VS With mobxState
 
 ## Code without mobxState:
@@ -248,12 +256,13 @@ Function `mobxState` 3 params, need to create getter and setter logic
 
 ### Params
 
-| Param           | Type                    | Description                                         | Initial | Required |
-| --------------- | ----------------------- | --------------------------------------------------- | ------- | -------- |
-| `initialValue`  | `generical`             | Object with keys for inputs                         |         | `true`   |
-| `annotations`   | `AnnotationsMap`        | makeAutoObservable second param                     | `{}`    | `false`  |
-| `options`       | `MakeObservableOptions` | makeAutoObservable third param                      | `{}`    | `false`  |
-| `@returns_name` | `string`                | Name of state, to create set and get with your name |         | `true`   |
+| Param           | Type                    | Description                                                                     | Initial | Required |
+| --------------- | ----------------------- | ------------------------------------------------------------------------------- | ------- | -------- |
+| `initialValue`  | `generical`             | Object with keys for inputs                                                     |         | `true`   |
+| `annotations`   | `AnnotationsMap`        | makeAutoObservable second param                                                 | `{}`    | `false`  |
+| `options`       | `MakeObservableOptions` | makeAutoObservable third param                                                  | `{}`    | `false`  |
+| `@returns_name` | `string`                | Name of state, to create set and get with your name                             |         | `true`   |
+| `@options`      | `MobxStateOptions`      | You can set { reset: true } to reset your value on onmount (only if you state ) | `{}`    | `false`  |
 
 ### Returns
 

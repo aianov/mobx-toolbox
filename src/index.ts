@@ -1,7 +1,39 @@
 import { makeAutoObservable } from 'mobx'
-import { AnnotationsMap } from 'mobx/dist/internal'
-import { FormErrors, FormStateOptions, FormValues, Identifiable, MakeObservableOptions, MobxState, MobxStateWithGetterAndSetter, NestedKeyOf, UpdaterT, ValidationResult, Validator } from './types'
+import { AnnotationsMap, onBecomeUnobserved } from 'mobx/dist/internal'
+import { FormErrors, FormStateOptions, FormValues, Identifiable, MakeObservableOptions, MobxStateOptions, MobxStateWithGetterAndSetter, NestedKeyOf, UpdaterT, ValidationResult, Validator } from './types'
 import { ValidatorBuilder } from './validators'
+
+// ========================== MOBX STATE ==============================
+
+class MobxState<K extends string, T> {
+	[key: string]: any
+
+	constructor(
+		initialValue: T,
+		name: K,
+		annotations: Record<string, any> = {},
+		makeObservableOptions: MakeObservableOptions = {},
+		options: MobxStateOptions = {}
+	) {
+		const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1)
+		const resetValue = initialValue
+
+		this[name] = initialValue as this[K]
+
+		this[`set${capitalizedName}`] = (newValue: T | ((prev: T) => T)) => {
+			if (typeof newValue === "function") this[name] = (newValue as (prev: T) => T)(this[name] as T) as this[K]
+			else this[name] = newValue as this[K]
+		}
+
+		makeAutoObservable(this, annotations, makeObservableOptions)
+
+		if (options.reset) {
+			onBecomeUnobserved(this, name, () => {
+				this[name] = resetValue as this[K]
+			})
+		}
+	}
+}
 
 // ========================== VALIDATION SCHEMA ==============================
 
@@ -201,7 +233,7 @@ class FormState<T> {
 // ========================== USE MOBX UPDATER ==============================
 
 class MobxUpdater {
-	constructor(annotations: AnnotationsMap<MobxState, never> = {}) {
+	constructor(annotations: AnnotationsMap<{ [key: string]: any }, never> = {}) {
 		makeAutoObservable(this, annotations, { autoBind: true })
 	}
 
@@ -290,11 +322,18 @@ class MobxUpdater {
  *
  * @example
  * // Создаем состояние с начальным значением 0
- * const counter = mobxState(0)('counter');
+ * const count = mobxState(0)('count');
  *
  * // Теперь можно использовать `counter.counter` для получения значения
  * и counter.setCounter(newValue | (prevValue) => newValue) для его изменения.
- * или const { counter: { counter, setCounter } } = counterStore.counter
+ * или const { count: { count, setCount } } = counterStore
+ * 
+ * Так-же вы можете использовать настройку { reset: true }
+ * @example
+ * const count = mobxState(0)('count', { reset: true })
+ * 
+ * Теперь ваше состояние 'count' будет автоматически сбрасываться до начального значения переданного в первом аргументе.
+ * Сброс будет происходить лишь в том случае если вы окажетесь в области где ваше состояние не наблюдается
  *
  * @param initialValue - начальное значение
  * @param annotations - объект аннотаций MobX, использовать как { переданное имя: observable... }
@@ -303,19 +342,11 @@ class MobxUpdater {
  */
 export function mobxState<T>(
 	initialValue: T,
-	annotations: AnnotationsMap<MobxState, never> = {},
-	options: MakeObservableOptions = {}
-): <K extends string>(name: K) => MobxStateWithGetterAndSetter<T, K> {
-	return function <K extends string>(name: K): MobxStateWithGetterAndSetter<T, K> {
-		const state: MobxState = {
-			[name]: initialValue,
-			[`set${name.charAt(0).toUpperCase() + name.slice(1)}`](newValue: T | ((prev: T) => T)): void {
-				if (typeof newValue === 'function') state[name] = (newValue as (prev: T) => T)(state[name])
-				else state[name] = newValue
-			},
-		}
-		makeAutoObservable(state, annotations, options)
-		return state as MobxStateWithGetterAndSetter<T, K>
+	annotations: Record<string, any> = {},
+	makeObservableOptions: MakeObservableOptions = {}
+) {
+	return <K extends string>(name: K, options?: MobxStateOptions): MobxStateWithGetterAndSetter<K, T> => {
+		return new MobxState<K, T>(initialValue, name, annotations, makeObservableOptions, options) as MobxStateWithGetterAndSetter<K, T>
 	}
 }
 
@@ -412,7 +443,7 @@ export const m = new ValidationSchema()
  */
 export const useMobxUpdate = <T extends Identifiable>(
 	arrayOrObject: T[] | Record<string, T>,
-	annotations: AnnotationsMap<MobxState, never> = {},
+	annotations: AnnotationsMap<{ [key: string]: any }, never> = {},
 ) => {
 	return <K extends NestedKeyOf<T>>(
 		id: string | number,
