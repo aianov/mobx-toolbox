@@ -1,5 +1,4 @@
-import { makeAutoObservable } from 'mobx'
-import { AnnotationsMap, onBecomeUnobserved } from 'mobx/dist/internal'
+import { AnnotationsMap, makeAutoObservable, onBecomeUnobserved } from 'mobx'
 import { FormErrors, FormStateOptions, FormValues, Identifiable, MakeObservableOptions, MobxStateOptions, MobxStateWithGetterAndSetter, NestedKeyOf, UpdaterT, ValidationResult, Validator } from './types'
 import { ValidatorBuilder } from './validators'
 
