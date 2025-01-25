@@ -125,7 +125,7 @@ class ValidationSchema extends ValidatorBuilder {
 		for (const field in this.validators) {
 			const validators = this.validators[field]
 			for (const validate of validators) {
-				const validationResult = validate(values[field])
+				const validationResult = validate(values[field], values)
 				if (validationResult !== true) {
 					success = false
 					errors[field + 'Err'] = typeof validationResult === 'string'

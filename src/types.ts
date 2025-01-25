@@ -11,7 +11,7 @@ export type CreateObservableOptions = { name?: string; equals?: IEqualsComparer<
 
 // ========================== USE VALIDATION ==============================
 
-export type Validator = (value: any) => boolean | string
+export type Validator = (value: any, allValues?: Record<string, any>) => true | string
 export type FormValues<T> = { [K in keyof T]: T[K] }
 export type FormErrors<T> = { [K in keyof T]: string } & { [K in keyof T as `${K & string}Err`]: string }
 export interface SchemaOptions { message?: string }

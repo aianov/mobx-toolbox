@@ -53,8 +53,6 @@ export class ValidatorBuilder {
 	/**
 	 * Проверяет максимальную длину строки.
 	 * 
-	 * Телеграм: https://t.me/nics51
-	 * 
 	 * @example
 	 * .maxLength(5, { message: "Maximum length is 5 characters." })
 	 * 
@@ -66,6 +64,28 @@ export class ValidatorBuilder {
 			value.length <= max ? true : options?.message || `Must not exceed ${max} characters.`)
 		return this
 	}
+
+	/**
+	 * Проверяет, что значение совпадает с указанным полем.
+	 *
+	 * @example
+	 * .matchField('password', { message: "Passwords do not match." })
+	 *
+	 * @param field - Название поля для сравнения
+	 * @param options - { message: "Err message" }
+	 */
+	matchField(field: string, options?: SchemaOptions): this {
+		this.validator.push((value: any, allValues?: Record<string, any>) => {
+			if (!allValues) {
+				throw new Error("All values are required for matchField validation.")
+			}
+			return value === allValues[field]
+				? true
+				: options?.message || `Value must match ${field}.`
+		})
+		return this
+	}
+
 
 	/**
 	 * Проверяет, соответствует ли значение заданному регулярному выражению.
