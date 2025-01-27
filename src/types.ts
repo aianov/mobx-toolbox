@@ -3,8 +3,8 @@ import { Annotation, AnnotationsMap } from 'mobx/dist/internal'
 
 // ========================== MOBX STATE ==============================
 
-export type MobxStateWithGetterAndSetter<K extends string, T> = { [Value in K]: T } & SetterType<K, T>
-export type SetterType<K extends string, T> = { [SetterName in `set${Capitalize<K>}`]: (newValue: T | ((prev: T) => T)) => void }
+export type MobxStateWithGetterAndSetter<K, T> = { [Value in Extract<K, string>]: T } & SetterType<K, T>
+export type SetterType<K, T> = { [SetterName in `set${Capitalize<Extract<K, string>>}`]: (newValue: T | ((prev: T) => T)) => void }
 export interface MobxStateOptions { reset?: boolean }
 export type MakeObservableOptions = Omit<CreateObservableOptions, 'proxy'>
 export type CreateObservableOptions = { name?: string; equals?: IEqualsComparer<any>; deep?: boolean; defaultDecorator?: Annotation; proxy?: boolean; autoBind?: boolean }
@@ -71,3 +71,33 @@ export type GetTypeFromKey<T, K extends AnyNestedKeyOf<T>> =
 export type UpdaterT<T, K extends AnyNestedKeyOf<T>> =
 	| ((prevValue: GetTypeFromKey<T, K>) => GetTypeFromKey<T, K>)
 	| GetTypeFromKey<T, K>
+
+
+// ========================== MOBX SAI FETCH ==============================
+
+export type MobxSaiInstance<T> = Partial<{
+	status: "pending" | "fulfilled" | "rejected"
+	data: T | null
+	error: Error | null
+
+	isPending: boolean
+	isFulfilled: boolean
+	isRejected: boolean
+
+	options: MobxSaiFetchOptions
+
+	value: () => T | null
+	errorMessage: () => string | null
+	fetch: (promiseOrFunction: Promise<T> | (() => Promise<T>)) => MobxSaiInstance<T>
+}>
+
+
+export interface MobxSaiFetchOptions {
+	id?: string
+	page?: MobxStateWithGetterAndSetter<number, string> | null
+	pageSetterName?: string | null
+	isFetchUp?: boolean
+	fetchType?: "default" | "pagination"
+	fetchIfPending?: boolean
+	fetchIfHaveData?: boolean
+}

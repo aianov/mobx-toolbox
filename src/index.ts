@@ -1,5 +1,5 @@
 import { AnnotationsMap, makeAutoObservable, onBecomeUnobserved } from 'mobx'
-import { FormErrors, FormStateOptions, FormValues, Identifiable, MakeObservableOptions, MobxStateOptions, MobxStateWithGetterAndSetter, NestedKeyOf, UpdaterT, ValidationResult, Validator } from './types'
+import { FormErrors, FormStateOptions, FormValues, Identifiable, MakeObservableOptions, MobxSaiFetchOptions, MobxSaiInstance, MobxStateOptions, MobxStateWithGetterAndSetter, NestedKeyOf, UpdaterT, ValidationResult, Validator } from './types'
 import { ValidatorBuilder } from './validators'
 
 // ========================== MOBX STATE ==============================
@@ -140,6 +140,16 @@ class ValidationSchema extends ValidatorBuilder {
 	}
 }
 
+const formStateDefaultOptions = {
+	instaValidate: true,
+	inputResetErr: true,
+	validateAllOnChange: false,
+	resetErrIfNoValue: true,
+	disabled: false,
+	observableAnnotations: {},
+	observableOptions: {}
+}
+
 class FormState<T> {
 	values: FormValues<T>
 	errors: FormErrors<T> = {} as FormErrors<T>
@@ -156,7 +166,7 @@ class FormState<T> {
 		this.initialValues = initialValues
 		this.values = initialValues
 		this.validationSchema = validationSchema
-		this.options = options
+		this.options = { ...formStateDefaultOptions, ...options }
 		if (options.disabled) this.disabled = options.disabled
 
 		makeAutoObservable(this, options.observableAnnotations || {}, options.observableOptions || {})
@@ -309,6 +319,145 @@ class MobxUpdater {
 	}
 }
 
+// ========================== MOBX SAI FETCH ==============================
+
+const defaultOptions: MobxSaiFetchOptions = {
+	id: "default",
+	page: null,
+	pageSetterName: null,
+	isFetchUp: false,
+	fetchType: "default",
+	fetchIfPending: false,
+	fetchIfHaveData: true,
+}
+
+const fetchCache = new Map<string, MobxSaiInstance<any>>()
+
+class MobxSaiFetch<T> {
+	constructor(options?: Partial<MobxSaiFetchOptions>) {
+		this.options = { ...defaultOptions, ...options }
+		makeAutoObservable(this, {}, { autoBind: true })
+	}
+
+	/** 
+ * Указатель того является ли запрос в обработке или нет (полезно если не хочешь использовать длинное сравнение с status)
+ */
+	isPending = false;
+
+	/** 
+ * Указатель того является ли запрос обработанным или нет (полезно если не хочешь использовать длинное сравнение с status)
+ */
+	isFulfilled = false;
+
+	/** 
+ * Указатель того является ли запрос отклонённым или нет (полезно если не хочешь использовать длинное сравнение с status)
+ */
+	isRejected = false;
+
+	/** 
+ * Статус текущего запроса, в обработке, обработан или отклонён
+ */
+	status: "pending" | "fulfilled" | "rejected" = "pending";
+
+	/** 
+ * Здесь хранится ответ из вашей функции запроса
+ */
+	data: T | null = null;
+
+	/** 
+ * Тут хранится ошибка от запроса
+ */
+	error: Error | null = null;
+
+	/** 
+ *	Супа, хайпа, галакси настройки для mobxSaiFetch
+ *	
+ *	`id` - Обязателен если хотите использовать options
+ *	
+ *	`page` - Это должно быть состояние от mobxState из этой-же библиотеки, нужна чтобы обновлять page (если у вас в fetchType указано "pagination")
+ *	
+ *	`pageSetterName` - Название во втором параметре mobxState у вашего page, тоесть например page = mobxState(1)("privet") вам нужно здесь передать "privet"
+ *	
+ *	`isFetchUp` - Флаг отвечающий за то делать ли page + 1 или page - 1
+ *	
+ *	`fetchType` - По умолчанию ваще имеет "default" но если хотите с пагинацией то "pagination"
+ *	
+ *	`fetchIfPending` - Отвечает за то, будут ли воспроизводится запросы в тот момент когда запрос уже идёт. Тоесть если вы укажете true то у вас будут запросы без остановки и ожидания. По умолчанию стоит false (Позаботился о джунам авхвааахв)
+ *	
+ *	`fetchIfHaveData` - Если указать false то запрос не будет идти если у вас уже есть ответ с предыдущего запроса, по умолчанию true
+ *	
+ */
+	options: MobxSaiFetchOptions = { ...defaultOptions };
+
+	fetch = (promiseOrFunction: Promise<T> | (() => Promise<T>)): this => {
+		const { fetchIfPending, fetchIfHaveData } = this.options
+
+		if (!fetchIfPending && this.isPending) {
+			console.log("Fetch is already pending and fetchIfPending is false.")
+			return this
+		}
+
+		if (!fetchIfHaveData && this.data) {
+			console.warn("Data already exists and fetchIfHaveData is false.")
+			return this
+		}
+
+		this.setPending()
+
+		this.status = "pending"
+		this.data = null
+		this.error = null
+
+		const fetchPromise = promiseOrFunction instanceof Promise
+			? () => promiseOrFunction
+			: promiseOrFunction
+
+		fetchPromise()
+			.then((result) => {
+				this.status = "fulfilled"
+				this.setFulfilled()
+				this.data = result
+
+				if (this.options.page && this.options.pageSetterName && !this.options.isFetchUp) {
+					(this.options.page as any)[this.options.pageSetterName]((p: number) => p + 1)
+				}
+			})
+			.catch((err) => {
+				this.status = "rejected"
+				this.setRejected()
+				this.error = err
+			})
+
+		return this
+	};
+
+	value = (): T | {} | null => this.status === "fulfilled" ? this.data : null
+
+	errorMessage = (): string | null => {
+		return this.status === "rejected"
+			? this.error?.message || "An error occurred, or base data not provided"
+			: null
+	};
+
+	private setFulfilled = () => {
+		this.isFulfilled = true
+		this.isPending = false
+		this.isRejected = false
+	};
+
+	private setRejected = () => {
+		this.isRejected = true
+		this.isFulfilled = false
+		this.isPending = false
+	};
+
+	private setPending = () => {
+		this.isFulfilled = false
+		this.isPending = true
+		this.isRejected = false
+	};
+}
+
 // ========================== EXPORTS ==============================
 
 /**
@@ -451,4 +600,128 @@ export const useMobxUpdate = <T extends Identifiable>(
 	) => {
 		(new MobxUpdater(annotations)).updateState(arrayOrObject, id, key, updater)
 	}
+}
+
+// ========================== MOBX-SAI-FETCH ==============================
+
+/**
+ * Делает запрос и предоставляет куча удобств :)
+ * 
+ * Телеграм: https://t.me/nics51
+ *
+ * @example
+ * // some-store.ts
+ * saiData: MobxSaiInstance<TestFetchData> = {}
+ * saiDataPage = mobxState(1)('saiDataPage')
+ * isFetchUp = mobxState(false)('isFetchUp')
+ * 
+ * getSaiMessageAction = async () => {
+ * 	const { messagePage, messageLimit } = messageApiStore
+ * 	const { selectedChat } = chatStore
+ * 
+ * 	try {
+ * 		const body = {
+ * 			page: messagePage,
+ * 			limit: messageLimit
+ * 		}
+ * 		this.saiData = mobxSaiFetch(getMessage({ page: messagePage, limit: messageLimit }))
+ * 	} catch (err) { console.log(err) }
+ * }
+ * 
+ * // SomeComponents.tsx
+ * const {
+ * 	saiData: {
+ * 		data,
+ * 		status
+ * 	}
+ * } = someStore
+ * 
+ * return (
+ * 	<>
+ * 		{status == "pending" ? (
+ * 			<div>Loading...</div>
+ * 		) : data?.message?.map((item) => (
+ * 			<div key={item.id}>
+ * 				<span>{item.content}</span>
+ * 			</div>
+ * 		))}
+ * 	</>
+ * )
+ * 
+ * Вообще эта функция имеет еще третий второй параметрм, options. Это настройки которые облегчат вам жизнь в разработке на архитектуре SAI да и в целом при работе с мобиксом. Соу да, ознакомьтесь пожалуйста с этим
+ *	
+ *	`id` - Обязателен если хотите использовать options
+ *	
+ *	`page` - Это должно быть состояние от mobxState из этой-же библиотеки, нужна чтобы обновлять page (если у вас в fetchType указано "pagination")
+ *	
+ *	`pageSetterName` - Название во втором параметре mobxState у вашего page, тоесть например page = mobxState(1)("privet") вам нужно здесь передать "privet"
+ *	
+ *	`isFetchUp` - Флаг отвечающий за то делать ли page + 1 или page - 1
+ *	
+ *	`fetchType` - По умолчанию ваще имеет "default" но если хотите с пагинацией то "pagination"
+ *	
+ *	`fetchIfPending` - Отвечает за то, будут ли воспроизводится запросы в тот момент когда запрос уже идёт. Тоесть если вы укажете true то у вас будут запросы без остановки и ожидания. По умолчанию стоит false (Позаботился о джунам авхвааахв)
+ *	
+ *	`fetchIfHaveData` - Если указать false то запрос не будет идти если у вас уже есть ответ с предыдущего запроса, по умолчанию true
+ *	
+ *	
+ * @example
+ * this.saiData = mobxSaiFetch(
+ * 	getMessage.bind(null, { page: messagePage, limit: messageLimit },
+ * 	{
+ * 		id: selectedChatId,
+ * 		page: this.saiDataPage,
+ * 		pageSetterName: "saiDataPage",
+ * 		isFetchUp: false,
+ * 		fetchType: "pagination",
+ * 		fetchIfPending: false,
+ * 		fetchIfHaveData: false
+ * 	}
+ * )
+ * 
+ * Теперь этот код будет:
+ * Добавлять +1 в page при пагинации вниз. Не будет делать запрос если запрос уже есть. Не будет делать запрос если уже есть ответ от предыдущего запроса
+ *	
+ * @param initialValue - начальное значение
+ * @param annotations - объект аннотаций MobX, использовать как { переданное имя: observable... }
+ * @param options - дополнительные опции для makeAutoObservable (например, autoBind, deep...)
+ * @returns Функция, которая принимает параметр `name` и возвращает объект состояния с геттером и сеттером этого же `name`.
+ */
+export function mobxSaiFetch<T>(
+	promiseOrFunction: Promise<T> | (() => Promise<T>),
+	options: MobxSaiFetchOptions = {}
+): MobxSaiInstance<T> {
+	const { id, fetchIfPending = false, fetchIfHaveData = true } = options
+
+	if (id && fetchCache.has(id)) {
+		const instance = fetchCache.get(id) as MobxSaiInstance<T>
+		const { isPending, data } = instance
+		if (!fetchIfPending && isPending) {
+			console.warn("Fetch is already pending and fetchIfPending is false.")
+			return instance
+		}
+		if (!fetchIfHaveData && data) {
+			console.warn("Data already exists and fetchIfHaveData is false.")
+			return instance
+		}
+		if (options.page && options.pageSetterName && options.isFetchUp) {
+			(options.page as any)[options.pageSetterName]((p: number) => p - 1)
+		}
+		if (instance.fetch) instance.fetch(promiseOrFunction)
+		else throw new Error("Fetch method is not defined on the instance.")
+		return instance
+	}
+
+	const instance = (new MobxSaiFetch<T>(options)) as MobxSaiInstance<T>
+
+	if (promiseOrFunction instanceof Promise) {
+		if (instance.fetch) instance.fetch(() => promiseOrFunction)
+		else throw new Error("Fetch method is not defined on the instance.")
+	} else if (typeof promiseOrFunction === "function") {
+		if (instance.fetch) instance.fetch(promiseOrFunction)
+		else throw new Error("Fetch method is not defined on the instance.")
+	} else throw new Error("Invalid argument passed to mobxSaiFetch.")
+
+	if (id) fetchCache.set(id, instance)
+	return instance
 }

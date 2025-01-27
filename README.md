@@ -1,5 +1,142 @@
 # Mobx-toolkit, mini-lib for easy in MobX using
 
+# mobxSaiFetch
+
+`mobxSaiFetch` can reduce your actions in mobx, and make life easier :)
+
+## Usage
+
+```typescript
+// some-store.ts
+class TestStore {
+	constructor() {
+		makeAutoObservable(this)
+	}
+
+	saiData: MobxSaiInstance<TestFetchData> = {}
+	saiDataPage = mobxState(1)('saiDataPage')
+	isFetchUp = mobxState(false)('isFetchUp')
+
+	getSaiMessageAction = async () => {
+		const { messagePage, messageLimit } = messageApiStore
+		const { selectedChat } = chatStore
+
+		try {
+			this.saiData = mobxSaiFetch(
+				getMessage({ page: messagePage, limit: messageLimit })
+			)
+		} catch (err) {
+			console.log(err)
+		}
+	}
+}
+
+export const testStore = new TestStore()
+
+// SomeComponent.tsx
+const {
+	saiData: {
+		data,
+		status, // or isPending
+	},
+} = testStore
+
+return (
+	<div>
+		{status == 'pending' ? (
+			<Loading />
+		) : (
+			data?.message?.map(msg => <Messages msg={msg} />)
+		)}
+	</div>
+)
+```
+
+### That was interesting right? Now i con show you more interesting things in mobxSaiFetch:
+
+## Usage #2 [Pro]
+
+```typescript
+// some-store.ts
+class TestStore {
+	constructor() {
+		makeAutoObservable(this)
+	}
+
+	saiData: MobxSaiInstance<TestFetchData> = {}
+	saiDataPage = mobxState(1)('saiDataPage')
+	isFetchUp = mobxState(false)('isFetchUp')
+
+	getSaiMessageAction = async () => {
+		const { messagePage, messageLimit } = messageApiStore
+		const { selectedChat } = chatStore
+
+		try {
+			this.saiData = mobxSaiFetch(
+				getMessage.bind(null, { page: messagePage, limit: messageLimit }), // you need to write bind or () => getMessage() if you want to provide settings
+				{
+					id: selectedChatId, // u need to provide special id, not index from arr method or smthng
+					page: this.saiData, // for pagination
+					pageSetterName: 'saiDataPage', // also for pagination
+					isFetchUp: this.isFetchUp.isFetchUp, // and also for pagination (fetch up or down), if down then +1 from page, otherwise -1
+					fetchType: 'pagination', // without "pagination", your page, setterName and isFetchUp are useless | Initial: "default"
+					fetchIfPending: false, // If true, it will be fetch without any coldowns | Initial: false
+					fetchIfHaveData: true, // If false, it wont do fetch if you have a response from last request | Initial: true
+				}
+			)
+		} catch (err) {
+			console.log(err)
+		}
+	}
+}
+
+export const testStore = new TestStore()
+
+// SomeComponent.tsx
+const {
+	saiData: {
+		data,
+		status, // or isPending
+	},
+} = testStore
+
+return (
+	<div>
+		{status == 'pending' ? (
+			<Loading />
+		) : (
+			data?.message?.map(msg => <Messages msg={msg} />)
+		)}
+	</div>
+)
+```
+
+# Options
+
+## `mobxSaiFetch`
+
+Function `mobxSaiFetch` 2 params, needs do your life with requests much easier
+
+### Params
+
+| Param      | Type                  | Description                  | Initial | Required |
+| ---------- | --------------------- | ---------------------------- | ------- | -------- |
+| `function` | `() => Promise<ay>`   | Function to request          |         | `true`   |
+| `options`  | `MobxSaiFetchOptions` | Options to your mobxSaiFetch | `{}`    | `false`  |
+
+### Returns
+
+| Param         | Type                                   | Description          |
+| ------------- | -------------------------------------- | -------------------- |
+| `data`        | `unknown`                              | your data from fetch |
+| `status`      | `"pending" / "fulfillef" / "rejected"` | Your fetch status    |
+| `error`       | `string`                               | Just error message   |
+| `isPenging`   | `boolean`                              |                      |
+| `isFulfulled` | `boolean`                              |                      |
+| `isRejected`  | `boolean`                              |                      |
+
+# -----------------------------
+
 # useMobxUpdate
 
 `useMobxUpdate` can reduce your code by 2/3+ times, depending on the volume of your functionality
