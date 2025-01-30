@@ -14,6 +14,8 @@ class MobxState<K extends string, T> {
 		makeObservableOptions: MakeObservableOptions = {},
 		options: MobxStateOptions = {}
 	) {
+		makeAutoObservable(this, annotations, makeObservableOptions)
+
 		const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1)
 		const resetValue = initialValue
 
@@ -23,8 +25,6 @@ class MobxState<K extends string, T> {
 			if (typeof newValue === "function") this[name] = (newValue as (prev: T) => T)(this[name] as T) as this[K]
 			else this[name] = newValue as this[K]
 		}
-
-		makeAutoObservable(this, annotations, makeObservableOptions)
 
 		if (options.reset) {
 			onBecomeUnobserved(this, name, () => {
