@@ -1,4 +1,4 @@
-import { AnnotationsMap, makeAutoObservable, onBecomeUnobserved } from 'mobx'
+import { action, AnnotationsMap, makeAutoObservable, makeObservable, observable, onBecomeUnobserved } from 'mobx'
 import { FormErrors, FormStateOptions, FormValues, Identifiable, MakeObservableOptions, MobxSaiFetchOptions, MobxSaiInstance, MobxStateOptions, MobxStateWithGetterAndSetter, NestedKeyOf, UpdaterT, ValidationResult, Validator } from './types'
 import { ValidatorBuilder } from './validators'
 
@@ -14,17 +14,23 @@ class MobxState<K extends string, T> {
 		makeObservableOptions: MakeObservableOptions = {},
 		options: MobxStateOptions = {}
 	) {
-		makeAutoObservable(this, annotations, makeObservableOptions)
-
 		const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1)
 		const resetValue = initialValue
 
 		this[name] = initialValue as this[K]
 
 		this[`set${capitalizedName}`] = (newValue: T | ((prev: T) => T)) => {
-			if (typeof newValue === "function") this[name] = (newValue as (prev: T) => T)(this[name] as T) as this[K]
-			else this[name] = newValue as this[K]
+			if (typeof newValue === "function") {
+				this[name] = (newValue as (prev: T) => T)(this[name] as T) as this[K]
+			} else {
+				this[name] = newValue as this[K]
+			}
 		}
+
+		makeObservable(this, {
+			[name]: observable,
+			[`set${capitalizedName}`]: action,
+		} as any)
 
 		if (options.reset) {
 			onBecomeUnobserved(this, name, () => {
