@@ -1,4 +1,7 @@
 {
+	"declaration": true,
+	"emitDeclarationOnly": false,
+	"declarationMap": true,
 	"compilerOptions": {
 		"target": "ES6",
 		"module": "commonjs",
