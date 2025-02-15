@@ -88,7 +88,11 @@ export type MobxSaiInstance<T> = Partial<{
 
 	value: () => T | null
 	errorMessage: () => string | null
-	fetch: (promiseOrFunction: Promise<T> | (() => Promise<T>)) => MobxSaiInstance<T>
+	fetch: (
+		promiseOrFunction: Promise<T> | (() => Promise<T>),
+		fromWhere?: "fromScroll" | null,
+		fetchWhat?: "top" | "bot" | null
+	) => MobxSaiInstance<T>
 }>
 
 
@@ -100,4 +104,32 @@ export interface MobxSaiFetchOptions {
 	fetchType?: "default" | "pagination"
 	fetchIfPending?: boolean
 	fetchIfHaveData?: boolean
+	isSetData?: boolean
+	cacheSystem: Partial<MobxSaiFetchCacheSystemOptions>
+	dataScope: Partial<MobxSaiFetchDataScopeOptions>
+	fetchAddTo: Partial<MobxSaiFetchFetchAddToOptions>
+}
+
+export interface MobxSaiFetchCacheSystemOptions {
+	limit?: number | null
+	setCache?: null | ((newValue: any[] | ((prev: any[]) => any[])) => void)
+}
+export interface MobxSaiFetchFetchAddToOptions {
+	path?: string | null
+	addTo?: "start" | "end" | "reset"
+	isSetReversedArr?: boolean | null
+	isSetPrevArr?: boolean | null
+	setArrCallback?: null | ((newValue: any[] | ((prev: any[]) => any[])) => void)
+}
+
+export interface MobxSaiFetchDataScopeOptions {
+	class: string | null
+	startFrom: 'bot' | 'top'
+	topPercentage: number | null
+	botPercentage: number | null
+	relativeParamsKey: string | null
+	upOrDownParamsKey: string | null
+	isHaveMoreResKey: string | null
+	howMuchGettedToTop: number
+	setParams: null | ((newValue: any[] | ((prev: any[]) => any[])) => void) | any
 }

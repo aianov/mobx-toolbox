@@ -328,6 +328,8 @@ class MobxUpdater {
 
 // ========================== MOBX SAI FETCH ==============================
 
+const fetchCache = new Map<string, MobxSaiInstance<any>>()
+
 const defaultOptions: MobxSaiFetchOptions = {
 	id: "default",
 	page: null,
@@ -336,114 +338,483 @@ const defaultOptions: MobxSaiFetchOptions = {
 	fetchType: "default",
 	fetchIfPending: false,
 	fetchIfHaveData: true,
+	isSetData: true,
+	cacheSystem: {
+		limit: null,
+		setCache: null
+	},
+	dataScope: {
+		class: null,
+		startFrom: 'top',
+		topPercentage: null,
+		botPercentage: null,
+		relativeParamsKey: null,
+		setParams: null,
+		upOrDownParamsKey: null,
+		isHaveMoreResKey: null,
+		howMuchGettedToTop: 2
+	},
+	fetchAddTo: {
+		path: '',
+		addTo: 'reset',
+		isSetReversedArr: false,
+		isSetPrevArr: false,
+		setArrCallback: null
+	},
 }
-
-const fetchCache = new Map<string, MobxSaiInstance<any>>()
 
 class MobxSaiFetch<T> {
 	constructor(options?: Partial<MobxSaiFetchOptions>) {
-		this.options = { ...defaultOptions, ...options }
+		this.options = {
+			...this.options,
+			...defaultOptions,
+			...options,
+			cacheSystem: {
+				...this.options.cacheSystem,
+				...defaultOptions.cacheSystem,
+				...options!.cacheSystem
+			},
+			dataScope: {
+				...this.options.dataScope,
+				...defaultOptions.dataScope,
+				...options!.dataScope
+			},
+			fetchAddTo: {
+				...this.options.fetchAddTo,
+				...defaultOptions.fetchAddTo,
+				...options!.fetchAddTo
+			}
+		}
 		makeAutoObservable(this, {}, { autoBind: true })
+		this.setupScrollTracking()
 	}
 
-	/** 
- * Указатель того является ли запрос в обработке или нет (полезно если не хочешь использовать длинное сравнение с status)
- */
 	isPending = false;
-
-	/** 
- * Указатель того является ли запрос обработанным или нет (полезно если не хочешь использовать длинное сравнение с status)
- */
 	isFulfilled = false;
-
-	/** 
- * Указатель того является ли запрос отклонённым или нет (полезно если не хочешь использовать длинное сравнение с status)
- */
 	isRejected = false;
 
-	/** 
- * Статус текущего запроса, в обработке, обработан или отклонён
- */
 	status: "pending" | "fulfilled" | "rejected" = "pending";
-
-	/** 
- * Здесь хранится ответ из вашей функции запроса
- */
 	data: T | null = null;
-
-	/** 
- * Тут хранится ошибка от запроса
- */
 	error: Error | null = null;
 
-	/** 
- *	Супа, хайпа, галакси настройки для mobxSaiFetch
- *	
- *	`id` - Обязателен если хотите использовать options
- *	
- *	`page` - Это должно быть состояние от mobxState из этой-же библиотеки, нужна чтобы обновлять page (если у вас в fetchType указано "pagination")
- *	
- *	`pageSetterName` - Название во втором параметре mobxState у вашего page, тоесть например page = mobxState(1)("privet") вам нужно здесь передать "privet"
- *	
- *	`isFetchUp` - Флаг отвечающий за то делать ли page + 1 или page - 1
- *	
- *	`fetchType` - По умолчанию ваще имеет "default" но если хотите с пагинацией то "pagination"
- *	
- *	`fetchIfPending` - Отвечает за то, будут ли воспроизводится запросы в тот момент когда запрос уже идёт. Тоесть если вы укажете true то у вас будут запросы без остановки и ожидания. По умолчанию стоит false (Позаботился о джунам авхвааахв)
- *	
- *	`fetchIfHaveData` - Если указать false то запрос не будет идти если у вас уже есть ответ с предыдущего запроса, по умолчанию true
- *	
- */
-	options: MobxSaiFetchOptions = { ...defaultOptions };
+	addedToEndCount = 0
+	addedToStartCount = 0
+	fetchedCount = 0
 
-	fetch = (promiseOrFunction: Promise<T> | (() => Promise<T>)): this => {
-		const { fetchIfPending, fetchIfHaveData } = this.options
+	scrollProgress = 0
+	gettedToTop = mobxState(0)('gettedToTop')
+	botStatus: "pending" | "fulfilled" | "rejected" | "" = "";
+	topStatus: "pending" | "fulfilled" | "rejected" | "" = "";
+	scrollCachedData = mobxState([])('scrollCachedData')
+
+	isBotPending = false
+	isBotRejected = false
+	isBotFulfulled = false
+
+	isTopPending = false
+	isTopRejected = false
+	isTopFulfulled = false
+
+	topError: Error | null = null
+	botError: Error | null = null
+
+	isHaveMoreBot = mobxState(true)('isHaveMoreBot')
+	isHaveMoreTop = mobxState(true)('isHaveMoreTop')
+
+	private oldOptions: MobxSaiFetchOptions | null = null
+
+	promiseOrFunction: (() => Promise<T>) | null = null
+	setPromiseOrFunction = (promise: (() => Promise<T>) | null) => this.promiseOrFunction = promise
+
+	options: MobxSaiFetchOptions = defaultOptions;
+
+	setupScrollTracking() {
+		if (!this.options.dataScope?.class) return
+
+		const element = document.querySelector(`.${this.options.dataScope.class}`)
+		if (!element) {
+			console.warn("Scroll tracking element not found.")
+			return
+		}
+
+		const updateScrollProgress = () => {
+			const { scrollTop, scrollHeight, clientHeight } = element
+			const { topPercentage, botPercentage, startFrom } = this.options.dataScope!
+			const {
+				gettedToTop: { gettedToTop, setGettedToTop },
+				isHaveMoreBot: { isHaveMoreBot, setIsHaveMoreBot },
+				isHaveMoreTop: { isHaveMoreTop, setIsHaveMoreTop },
+				options: { dataScope: {
+					relativeParamsKey,
+					upOrDownParamsKey,
+					howMuchGettedToTop
+				} },
+				isTopPending,
+				isBotPending,
+			} = this
+
+			this.scrollProgress = Math.round((scrollTop / (scrollHeight - clientHeight)) * 100)
+
+			// === FETCH TOP ===
+			if (
+				topPercentage !== null &&
+				this.scrollProgress <= topPercentage! &&
+				!isTopPending &&
+				isHaveMoreTop
+			) {
+				if (startFrom == 'top' && gettedToTop >= -(howMuchGettedToTop! - 1)) return
+
+				console.log("FETCH TOP")
+				setGettedToTop(p => {
+					if ((p + 1) >= howMuchGettedToTop! + 1) setIsHaveMoreBot(true)
+					return p + 1
+				})
+				this.setTopPending()
+
+				// @ts-ignore
+				if (this?.data?.[this?.options?.fetchAddTo?.path]?.[0]?.id) {
+					console.warn(`We can't find your relative Id`)
+					return
+				}
+
+				this.oldOptions = this.options
+				this.options = {
+					...this.options,
+					isSetData: true,
+					fetchAddTo: {
+						...this.options.fetchAddTo,
+						addTo: 'start'
+					}
+				}
+
+				this.options.dataScope.setParams((prev: any) => {
+					const newParams = prev
+					// @ts-ignore
+					if (relativeParamsKey) newParams[relativeParamsKey] = this.data[this.options.fetchAddTo.path][0].id
+					if (upOrDownParamsKey) newParams[upOrDownParamsKey] = true
+					return newParams
+				})
+
+				if (this.promiseOrFunction) this.fetch(this.promiseOrFunction, 'fromScroll', 'top')
+			}
+
+			// === FETCH BOT ===
+			if (
+				botPercentage !== null &&
+				this.scrollProgress >= botPercentage! &&
+				!isBotPending &&
+				this.data &&
+				this.options.fetchAddTo.path &&
+				// @ts-ignore
+				this.data[this.options.fetchAddTo.path] &&
+				this.options.dataScope.setParams &&
+				isHaveMoreBot
+			) {
+				if (startFrom == 'bot' && gettedToTop <= howMuchGettedToTop!) return
+
+				console.log("FETCH BOT")
+				setGettedToTop(p => {
+					if ((p - 1) <= howMuchGettedToTop! - 1) setIsHaveMoreTop(true)
+					return p - 1
+				})
+				this.setBotPending()
+
+				// @ts-ignore
+				if (!this.data[this.options.fetchAddTo.path][this.data[this.options.fetchAddTo.path]?.length - 1].id) {
+					console.warn(`We can't find your relative Id`)
+					return
+				}
+
+				this.oldOptions = this.options
+				this.options = {
+					...this.options,
+					isSetData: true,
+					fetchAddTo: {
+						...this.options.fetchAddTo,
+						addTo: 'end'
+					}
+				}
+
+				this.options.dataScope.setParams((prev: any) => {
+					const newParams = prev
+					// @ts-ignore
+					if (relativeParamsKey) newParams[relativeParamsKey] = this.data[this.options.fetchAddTo.path][this.data[this.options.fetchAddTo.path]?.length - 1].id
+					if (upOrDownParamsKey) newParams[upOrDownParamsKey] = false
+					return newParams
+				})
+
+				if (this.promiseOrFunction) this.fetch(this.promiseOrFunction, 'fromScroll', 'bot')
+			}
+		}
+
+		element.addEventListener("scroll", updateScrollProgress)
+	}
+
+	fetch = (promiseOrFunction: Promise<T> | (() => Promise<T>), fromWhere: 'fromScroll' | null, fetchWhat: 'top' | 'bot' | null = null): this => {
+		const {
+			gettedToTop: { gettedToTop },
+			isHaveMoreBot: { setIsHaveMoreBot },
+			isHaveMoreTop: { setIsHaveMoreTop }
+		} = this
+		const {
+			dataScope: { startFrom, isHaveMoreResKey, howMuchGettedToTop },
+			fetchIfPending,
+			fetchIfHaveData,
+			fetchAddTo,
+		} = this.options
 
 		if (!fetchIfPending && this.isPending) {
 			console.log("Fetch is already pending and fetchIfPending is false.")
 			return this
 		}
 
-		if (!fetchIfHaveData && this.data) {
+		if (!fetchIfHaveData && this.data && !fromWhere) {
 			console.warn("Data already exists and fetchIfHaveData is false.")
 			return this
 		}
 
-		this.setPending()
+		if (fromWhere == null && fetchWhat == null) {
+			this.setPending()
+			this.status = "pending"
+			this.error = null
+		}
 
-		this.status = "pending"
-		this.data = null
-		this.error = null
-
-		const fetchPromise = promiseOrFunction instanceof Promise
-			? () => promiseOrFunction
-			: promiseOrFunction
+		const fetchPromise =
+			promiseOrFunction instanceof Promise
+				? () => promiseOrFunction
+				: promiseOrFunction
 
 		fetchPromise()
 			.then((result) => {
-				this.status = "fulfilled"
-				this.setFulfilled()
-				this.data = result
+				if (fromWhere == null && fetchWhat == null) {
+					this.status = "fulfilled"
+					this.setFulfilled()
+				} else {
+					if (fetchWhat == 'bot') {
+						this.setBotFulfilled()
+						// @ts-ignore
+						if (result[isHaveMoreResKey] != undefined) {
+							// @ts-ignore
+							setIsHaveMoreBot(result[isHaveMoreResKey])
+						} else console.warn(`BOT FETCH: Can't find isHaveMore from passed isHaveMoreResKey 'result[isHaveMoreResKey]'`)
+					}
+					if (fetchWhat == 'top') {
+						this.setTopFulfilled()
+						// @ts-ignore
+						if (result[isHaveMoreResKey] != undefined) {
+							// @ts-ignore
+							setIsHaveMoreTop(result[isHaveMoreResKey])
+						} else console.warn(`TOP FETCH: Can't find isHaveMore from passed isHaveMoreResKey 'result[isHaveMoreResKey]'`)
+					}
+				}
+
+				if (fetchAddTo && fetchAddTo.path && typeof this.data === "object" && this.data !== null) {
+					// @ts-ignore
+					if (Array.isArray(this.getPathValue(this.data, fetchAddTo.path)) && Array.isArray(result[fetchAddTo.path])) {
+
+						// SCROLL CACHE SYSTEM 
+						if (gettedToTop <= -howMuchGettedToTop! && startFrom == 'top') {
+							setIsHaveMoreTop(true)
+							if (fetchWhat == 'bot') {
+								// @ts-ignore
+								this.data[fetchAddTo.path].splice(0, this.options.cacheSystem.limit)
+							} else {
+								// @ts-ignore
+								this.data[fetchAddTo.path] = [...this.data[fetchAddTo.path].slice(0, -this.options.cacheSystem.limit)]
+							}
+						}
+						if (fetchWhat == 'bot' && startFrom == 'top') {
+							if (gettedToTop === -howMuchGettedToTop!) {
+								// @ts-ignore
+								const cachedList = this.data[fetchAddTo.path].slice(0, this.options.cacheSystem.limit)
+								this.scrollCachedData.setScrollCachedData(cachedList)
+							}
+						}
+						if (fetchWhat == 'top' && startFrom == 'bot') {
+							if (gettedToTop === howMuchGettedToTop) {
+								// @ts-ignore
+								const cachedList = this.data[fetchAddTo.path].slice(-this.options.cacheSystem.limit)
+								this.scrollCachedData.setScrollCachedData(cachedList)
+							}
+						}
+
+						const targetArray = this.getPathValue(this.data, fetchAddTo.path)
+
+						switch (fetchAddTo.addTo) {
+							case "start":
+								this.setAddedToStartCount('+')
+								if (fetchAddTo.setArrCallback) {
+									fetchAddTo.setArrCallback(prev => {
+										// @ts-ignore
+										return fetchAddTo?.isSetReversedArr ? [...result[fetchAddTo.path], ...prev].reverse() : [...result[fetchAddTo.path].reverse(), ...prev]
+									})
+								}
+								if (!this.options?.isSetData) return
+								// @ts-ignore
+								this.setPathValue(this.data, fetchAddTo.path, [...result[fetchAddTo.path], ...targetArray])
+								break
+							case "end":
+								this.setAddedToEndCount('+')
+								if (fetchAddTo.setArrCallback) {
+									fetchAddTo.setArrCallback(prev => {
+										// @ts-ignore
+										return fetchAddTo?.isSetReversedArr ? [...prev, ...result[fetchAddTo.path]].reverse() : [...prev, ...result[fetchAddTo.path]]
+									})
+								}
+								if (!this.options?.isSetData) return
+								// @ts-ignore
+								this.setPathValue(this.data, fetchAddTo.path, [...targetArray, ...result[fetchAddTo.path]])
+								break
+							case "reset":
+							default:
+								if (fetchAddTo.setArrCallback) {
+									if (fetchAddTo.path) {
+										// @ts-ignore
+										fetchAddTo.setArrCallback(fetchAddTo?.isSetReversedArr ? [...result[fetchAddTo.path]]?.reverse() : result[fetchAddTo.path])
+									} else {
+										fetchAddTo.setArrCallback(result as [])
+									}
+								}
+								if (!this.options?.isSetData) return
+								this.setPathValue(this.data, fetchAddTo.path, result)
+						}
+					} else {
+						this.setFetchedCount('+')
+						if (fetchAddTo.setArrCallback) {
+							if (fetchAddTo?.path) {
+								fetchAddTo.setArrCallback(prev => {
+									if (fetchAddTo?.isSetPrevArr) {
+										if (fetchAddTo?.isSetReversedArr) {
+											// @ts-ignore
+											return fetchAddTo?.addTo == 'start' ? [...prev, ...[...result[fetchAddTo.path]]?.reverse()] : [...[...result[fetchAddTo.path]]?.reverse(), ...prev]
+										}
+										// @ts-ignore
+										return fetchAddTo?.addTo == 'start' ? [...prev, ...result[fetchAddTo.path]] : [...result[fetchAddTo.path], ...prev]
+									}
+									if (fetchAddTo?.isSetReversedArr) {
+										// @ts-ignore
+										return result[fetchAddTo.path]?.reverse()
+									}
+									// @ts-ignore
+									return result[fetchAddTo.path]
+								})
+							} else {
+								fetchAddTo.setArrCallback(result as [])
+							}
+						}
+						if (!this.options?.isSetData) return
+						this.data = result
+					}
+				} else {
+					this.setFetchedCount('+')
+					if (fetchAddTo.setArrCallback) {
+						if (fetchAddTo?.path) {
+							fetchAddTo.setArrCallback(prev => {
+								if (fetchAddTo?.isSetPrevArr) {
+									// @ts-ignore
+									const arrCount = [...prev, ...[...result[fetchAddTo.path]]].length
+									if (fetchAddTo?.isSetReversedArr) {
+										// @ts-ignore
+										const newList = fetchAddTo?.addTo == 'start' ? [...prev, ...[...result[fetchAddTo.path]]?.reverse()] : [...[...result[fetchAddTo.path]]?.reverse(), ...prev]
+										if (this.options.cacheSystem.limit) {
+											if (arrCount >= this.options.cacheSystem.limit) {
+												// @ts-ignore
+												this.options.cacheSystem.setCache(newList)
+											}
+										}
+										return newList
+									}
+									// @ts-ignore
+									const newList = fetchAddTo?.addTo == 'start' ? [...prev, ...result[fetchAddTo.path]] : [...result[fetchAddTo.path], ...prev]
+									if (this.options.cacheSystem.limit) {
+										if (arrCount >= this.options.cacheSystem.limit) {
+											// @ts-ignore
+											this.options.cacheSystem.setCache(newList)
+										}
+									}
+									return newList
+								}
+								// @ts-ignore
+								const newList = result[fetchAddTo.path]
+								const arrCount = newList?.length
+								if (this.options.cacheSystem.limit) {
+									if (arrCount >= this.options.cacheSystem.limit) {
+										// @ts-ignore
+										this.options.cacheSystem.setCache(fetchAddTo?.isSetReversedArr ? newList?.reverse() : newList)
+									}
+								}
+								if (fetchAddTo?.isSetReversedArr) {
+									return newList?.reverse()
+								}
+								return newList
+							})
+						} else {
+							fetchAddTo.setArrCallback(result as [])
+						}
+					}
+					if (!this.options?.isSetData) return
+					this.data = result
+				}
 
 				if (this.options.page && this.options.pageSetterName && !this.options.isFetchUp) {
 					(this.options.page as any)[this.options.pageSetterName]((p: number) => p + 1)
 				}
 			})
 			.catch((err) => {
-				this.status = "rejected"
-				this.setRejected()
-				this.error = err
+				if (fromWhere == null && fetchWhat == null) {
+					this.status = "rejected"
+					this.setRejected()
+					this.error = err
+				} else {
+					if (fetchWhat == 'bot') this.setBotRejected(err)
+					if (fetchWhat == 'top') this.setTopRejected(err)
+				}
+			})
+			.finally(() => {
+				if (this.oldOptions) {
+					this.options = this.oldOptions
+				}
 			})
 
 		return this
 	};
 
-	value = (): T | {} | null => this.status === "fulfilled" ? this.data : null
+	isFetched = () => {
+		return !!this.data
+	}
 
-	errorMessage = (): string | null => {
-		return this.status === "rejected"
-			? this.error?.message || "An error occurred, or base data not provided"
-			: null
+	private setAddedToEndCount = (which: '+' | '-' | number) => {
+		this.setFetchedCount('+')
+		if (typeof which == 'number') this.addedToEndCount = which
+		if (which == '+') this.addedToEndCount = this.addedToEndCount + 1
+		else this.addedToEndCount = this.addedToEndCount - 1
+	}
+
+	private setAddedToStartCount = (which: '+' | '-' | number) => {
+		this.setFetchedCount('+')
+		if (typeof which == 'number') this.addedToStartCount = which
+		if (which == '+') this.addedToStartCount = this.addedToStartCount + 1
+		else this.addedToStartCount = this.addedToStartCount - 1
+	}
+
+	private setFetchedCount = (which: '+' | '-' | number) => {
+		if (typeof which == 'number') this.fetchedCount = which
+		if (which == '+') this.fetchedCount = this.fetchedCount + 1
+		else this.fetchedCount = this.fetchedCount - 1
+	}
+
+	private getPathValue = (obj: any, path: string): any => {
+		return path.split(".").reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : null), obj)
+	};
+
+	private setPathValue = (obj: any, path: string, value: any) => {
+		const keys = path.split(".")
+		let temp = obj
+		for (let i = 0; i < keys.length - 1; i++) {
+			if (!temp[keys[i]]) temp[keys[i]] = {}
+			temp = temp[keys[i]]
+		}
+		temp[keys[keys.length - 1]] = value
 	};
 
 	private setFulfilled = () => {
@@ -463,6 +834,50 @@ class MobxSaiFetch<T> {
 		this.isPending = true
 		this.isRejected = false
 	};
+
+	private setTopPending = () => {
+		this.topStatus = 'pending'
+		this.isTopPending = true
+		this.isTopRejected = false
+		this.isTopFulfulled = false
+	}
+
+	private setTopRejected = (err: Error) => {
+		this.topError = err
+		this.topStatus = 'rejected'
+		this.isTopPending = false
+		this.isTopRejected = true
+		this.isTopFulfulled = false
+	}
+
+	private setTopFulfilled = () => {
+		this.topStatus = 'fulfilled'
+		this.isTopPending = false
+		this.isTopRejected = false
+		this.isTopFulfulled = true
+	}
+
+	private setBotPending = () => {
+		this.botStatus = 'pending'
+		this.isBotPending = true
+		this.isBotRejected = false
+		this.isBotFulfulled = false
+	}
+
+	private setBotRejected = (err: Error) => {
+		this.botError = err
+		this.botStatus = 'rejected'
+		this.isBotPending = false
+		this.isBotRejected = true
+		this.isBotFulfulled = false
+	}
+
+	private setBotFulfilled = () => {
+		this.botStatus = 'fulfilled'
+		this.isBotPending = false
+		this.isBotRejected = false
+		this.isBotFulfulled = true
+	}
 }
 
 // ========================== EXPORTS ==============================
@@ -671,24 +1086,69 @@ export const useMobxUpdate = <T extends Identifiable>(
  *	
  *	`fetchIfHaveData` - Если указать false то запрос не будет идти если у вас уже есть ответ с предыдущего запроса, по умолчанию true
  *	
+ *	Есть еще более сложные настроечки
+ *	
+ *	`isSetData` - Отвечает за то, вставлять ли полученную дату в data или нет
+ *	
+ *	`cacheSystem` - {
+ *		`limit` - Отвечает за то какой лимит у вас в каждом запросе, он обязателен для системы кэширования данных в области видимости
+ *		`setCache` - Отвечает за то куда вставлять кэшированные данные, передавайте только состояние mobxState
+ *	}
+ *	
+ *	`dataScope` - {
+ *		`class` - Класс вашего скроллера
+ *		`startFrom` - Откуда начинается ваш скролл, снизу или сверху?
+ *		`topPercentage` - Какой процент должен достигнуть ваш скролл чтобы сделать запрос навверх
+ *		`botPercentage` - Какой процент должен достигнуть ваш скрол чтобы сделать запрос вниз
+ *		`relativeParamsKey` - Где находится ваш ключ relativeId в params, для того чтобы mobxSaiFetch могла обратиться к этому ключу и обновлять его айди, делая следующий запрос с новыми значениями в параметре
+ *		`setParams` - Сеттер для параметров, передавайте только mobxState
+ *		`upOrDownParamsKey` - Где находится ваш up флаг в params, который отвечает за то, вверх получать данные или вниз от вашего relativeId
+ *		`isHaveMoreResKey` - Где находится ваш isHaveMore флаг в ответе из запроса, который отвечает за то, есть ли больше данных сверху или внизу
+ *		`howMuchGettedToTop` - Сколько раз нужно сделать фетч вверх, чтобы убрать данные в противоположной стороне и засунуть их в кэш
+ *	}
+ *	
+ *	`fetchAddTo` = {
+ *		`path` - Путь к массиву из ответа запроса
+ *		`addTo` - По умолчанию стоит reset, он отвечает за то, что ваши данные всегда будут сбрасываться, start и end отвечают за то куда будет вставлен полученный массив, в начало или конец вашего массива в data
+ *		`isSetReversedArr` - Отвечает за то переворачивать ли ваш массив в ответе перед тем как пихать его в data или нет?
+ *		`setArrCallback` - Позволяет вам дополнительно хранить ответ из запроса в другом состоянии (передавать только mobxState)
+ *	}
  *	
  * @example
- * this.saiData = mobxSaiFetch(
- * 	getMessage.bind(null, { page: messagePage, limit: messageLimit },
- * 	{
- * 		id: selectedChatId,
- * 		page: this.saiDataPage,
- * 		pageSetterName: "saiDataPage",
- * 		isFetchUp: false,
- * 		fetchType: "pagination",
- * 		fetchIfPending: false,
- * 		fetchIfHaveData: false
- * 	}
+ * const params = mobxState<GetChatProfileMediaParams>({
+ * 	limit: this.chatMediaProfileLimit,
+ * 	up: this.chatMediaProfileUp
+ * })('params')
+
+ * this.chatMediaProfile = mobxSaiFetch(
+ * 	() => getChatProfileMedia(selectedChat?.chatId, params.params),
+ * 		{
+ * 			id: selectedChat?.chatId,
+ * 			fetchIfHaveData: false,
+ * 			cacheSystem: {
+ * 				limit: this.chatMediaProfileLimit,
+ * 				setCache: setChatMediaCache
+ * 			},
+ * 			dataScope: {
+ * 				class: "chatProfileMediaScrollClassname0",
+ * 				startFrom: 'top',
+ * 				topPercentage: 20,
+ * 				botPercentage: 80,
+ * 				relativeParamsKey: 'relativeImageMessageId',
+ * 				upOrDownParamsKey: 'up',
+ * 				isHaveMoreResKey: 'isHaveMoreBotOrTop',
+ * 				setParams: params.setParams
+ * 			},
+ * 			fetchAddTo: {
+ * 				path: 'data',
+ * 				addTo: 'start',
+ * 				setArrCallback: setChatProfileMedias
+ * 			}
+ * 		}
  * )
  * 
- * Теперь этот код будет:
- * Добавлять +1 в page при пагинации вниз. Не будет делать запрос если запрос уже есть. Не будет делать запрос если уже есть ответ от предыдущего запроса
- *	
+ * Этот код делает за вас работу области видимости) Обсудите все детали с бэкендером, но если вы фуллстэк разработчик то эта функция идеально подойдет вам
+ * 
  * @param initialValue - начальное значение
  * @param annotations - объект аннотаций MobX, использовать как { переданное имя: observable... }
  * @param options - дополнительные опции для makeAutoObservable (например, autoBind, deep...)
@@ -696,13 +1156,35 @@ export const useMobxUpdate = <T extends Identifiable>(
  */
 export function mobxSaiFetch<T>(
 	promiseOrFunction: Promise<T> | (() => Promise<T>),
-	options: MobxSaiFetchOptions = {}
+	options: Partial<MobxSaiFetchOptions> = {}
 ): MobxSaiInstance<T> {
 	const { id, fetchIfPending = false, fetchIfHaveData = true } = options
 
 	if (id && fetchCache.has(id)) {
 		const instance = fetchCache.get(id) as MobxSaiInstance<T>
 		const { isPending, data } = instance
+
+		instance.options = {
+			...instance.options,
+			...defaultOptions,
+			...options,
+			cacheSystem: {
+				...instance.options!.cacheSystem,
+				...defaultOptions.cacheSystem,
+				...options.cacheSystem
+			},
+			dataScope: {
+				...instance.options!.dataScope,
+				...defaultOptions.dataScope,
+				...options.dataScope
+			},
+			fetchAddTo: {
+				...instance.options!.fetchAddTo,
+				...defaultOptions.fetchAddTo,
+				...options.fetchAddTo
+			}
+		}
+
 		if (!fetchIfPending && isPending) {
 			console.warn("Fetch is already pending and fetchIfPending is false.")
 			return instance
@@ -714,7 +1196,27 @@ export function mobxSaiFetch<T>(
 		if (options.page && options.pageSetterName && options.isFetchUp) {
 			(options.page as any)[options.pageSetterName]((p: number) => p - 1)
 		}
-		if (instance.fetch) instance.fetch(promiseOrFunction)
+		if (instance.fetch) {
+			var cachedArr: string | any[] = []
+			if (options.cacheSystem!.setCache && !instance.data && options.cacheSystem!.limit) {
+				options.cacheSystem!.setCache(prev => {
+					if (prev?.length == 0 || (prev?.length < options.cacheSystem!.limit!)) {
+						return prev
+					}
+					cachedArr = prev
+					return prev
+				})
+				if (cachedArr?.length != 0) {
+					// @ts-ignore
+					const instanceWithCache = { ...instance, data: { ...instance?.data, [options.fetchAddTo.path]: cachedArr } }
+					// @ts-ignore
+					return instanceWithCache
+				}
+			}
+			// @ts-ignore
+			instance.setPromiseOrFunction(promiseOrFunction)
+			instance.fetch(promiseOrFunction)
+		}
 		else throw new Error("Fetch method is not defined on the instance.")
 		return instance
 	}
@@ -722,9 +1224,13 @@ export function mobxSaiFetch<T>(
 	const instance = (new MobxSaiFetch<T>(options)) as MobxSaiInstance<T>
 
 	if (promiseOrFunction instanceof Promise) {
+		// @ts-ignore
+		instance.setPromiseOrFunction(promiseOrFunction)
 		if (instance.fetch) instance.fetch(() => promiseOrFunction)
 		else throw new Error("Fetch method is not defined on the instance.")
 	} else if (typeof promiseOrFunction === "function") {
+		// @ts-ignore
+		instance.setPromiseOrFunction(promiseOrFunction)
 		if (instance.fetch) instance.fetch(promiseOrFunction)
 		else throw new Error("Fetch method is not defined on the instance.")
 	} else throw new Error("Invalid argument passed to mobxSaiFetch.")

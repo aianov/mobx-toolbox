@@ -111,6 +111,83 @@ return (
 )
 ```
 
+## Usage #3 [Pro] Data scope in scroll
+
+```typescript
+// some-store.ts
+class TestStore {
+	constructor() {
+		makeAutoObservable(this)
+	}
+
+	selectedMessage = {}
+
+	saiData: MobxSaiInstance<TestFetchData> = {}
+	saiDataPage = mobxState(1)('saiDataPage')
+	isFetchUp = mobxState(false)('isFetchUp')
+	messagesCache = mobxState([])('messagesCache')
+	saiDataLimit = 40
+
+	getSaiMessageAction = async () => {
+		try {
+			const params = mobxState<GetChatProfileMediaParams>({
+				limit: this.saiDataLimit,
+				up: this.isFetchUp,
+			})('params')
+
+			this.chatMediaProfile = mobxSaiFetch(
+				() => getChatProfileMedia(selectedMessage.id, params.params),
+				{
+					id: selectedMessage.id,
+					fetchIfHaveData: false,
+					cacheSystem: {
+						limit: this.saiDataLimit,
+						setCache: this.setMessagesCache,
+					},
+					dataScope: {
+						class: 'our-scroller',
+						startFrom: 'top',
+						topPercentage: 20,
+						botPercentage: 80,
+						relativeParamsKey: 'relativeMessageId',
+						upOrDownParamsKey: 'up',
+						isHaveMoreResKey: 'isHaveMoreBotOrTop',
+						setParams: params.setParams,
+					},
+					fetchAddTo: {
+						path: 'data',
+						addTo: 'start',
+					},
+				}
+			)
+		} catch (err) {
+			console.log(err)
+		}
+	}
+}
+
+// SomeComponent.tsx
+const {
+	saiData: {
+		data,
+		status, // or isPending
+	},
+} = testStore
+
+return (
+	<div className='our-scroller'>
+		{status == 'pending' ? (
+			<Loading />
+		) : (
+			data?.message?.map(msg => <Messages msg={msg} />)
+		)}
+	</div>
+)
+```
+
+Its very hard to use because, but this code can do logic with data scope. Like messages in telegram or media files in scroll scope.
+This options can reduce 200 strokes of code
+
 # Options
 
 ## `mobxSaiFetch`
@@ -126,14 +203,33 @@ Function `mobxSaiFetch` 2 params, needs do your life with requests much easier
 
 ### Returns
 
-| Param         | Type                                   | Description          |
-| ------------- | -------------------------------------- | -------------------- |
-| `data`        | `unknown`                              | your data from fetch |
-| `status`      | `"pending" / "fulfillef" / "rejected"` | Your fetch status    |
-| `error`       | `string`                               | Just error message   |
-| `isPenging`   | `boolean`                              |                      |
-| `isFulfulled` | `boolean`                              |                      |
-| `isRejected`  | `boolean`                              |                      |
+| Param               | Type                                   | Description                                                       |
+| ------------------- | -------------------------------------- | ----------------------------------------------------------------- |
+| `data`              | `unknown`                              | your data from fetch                                              |
+| `status`            | `"pending" / "fulfillef" / "rejected"` | Your fetch status                                                 |
+| `error`             | `string`                               | Just error message                                                |
+| `isFetched`         | `boolean`                              | Can give you information about if mobxSaiFetch is already fetched |
+| `isPenging`         | `boolean`                              |                                                                   |
+| `isFulfulled`       | `boolean`                              |                                                                   |
+| `isRejected`        | `boolean`                              |                                                                   |
+| `addedToEndCount`   | `number`                               | How much times we added new data to the end of our data array     |
+| `addedToStartCount` | `number`                               | How much times we added new data to the start of our data array   |
+| `fetchedCount`      | `number`                               | How much times we fetched with mobxSaiFetch                       |
+| `scrollProgress`    | `number`                               | Our scroll progress (if we passed class in dataScope option)      |
+| `gettedToTop`       | `MobxState`                            | How much we getted to top                                         |
+| `botStatus`         | `"pending" / "fulfillef" / "rejected"` | Fetch to the bottom status                                        |
+| `topState`          | `"pending" / "fulfillef" / "rejected"` | Fetch to the top status                                           |
+| `scrollCachedData`  | `MobxState`                            | Our cached data if we passed cacheSystem and dataScope options    |
+| `isBotPending`      | `boolean`                              |                                                                   |
+| `isBotRejected`     | `boolean`                              |                                                                   |
+| `isBotFulfilled`    | `boolean`                              |                                                                   |
+| `isTopPending`      | `boolean`                              |                                                                   |
+| `isTopRejected`     | `boolean`                              |                                                                   |
+| `isTopFulfilled`    | `boolean`                              |                                                                   |
+| `topError`          | `string`                               | Fetch to top error                                                |
+| `botError`          | `string`                               | Fetch to bot error                                                |
+| `isHaveMoreBot`     | `MobxState`                            | Have we more data to the bottom?                                  |
+| `isHaveMoreTot`     | `MobxState`                            | Have we more data to the top?                                     |
 
 # -----------------------------
 
