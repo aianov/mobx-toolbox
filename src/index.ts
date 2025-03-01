@@ -1,5 +1,5 @@
 import { action, AnnotationsMap, makeAutoObservable, makeObservable, observable, onBecomeUnobserved } from 'mobx'
-import { FormErrors, FormStateOptions, FormValues, Identifiable, MakeObservableOptions, MobxSaiFetchOptions, MobxSaiInstance, MobxStateOptions, MobxStateWithGetterAndSetter, NestedKeyOf, UpdaterT, ValidationResult, Validator } from './types'
+import { FormErrors, FormStateOptions, FormValues, Identifiable, MobxSaiFetchOptions, MobxSaiInstance, MobxStateOptions, MobxStateWithGetterAndSetter, NestedKeyOf, UpdaterT, ValidationResult, Validator } from './types'
 import { ValidatorBuilder } from './validators'
 export * from "./types"
 
@@ -909,12 +909,10 @@ class MobxSaiFetch<T> {
  * @returns Функция, которая принимает параметр `name` и возвращает объект состояния с геттером и сеттером этого же `name`.
  */
 export function mobxState<T>(
-	initialValue: T,
-	annotations: Record<string, any> = {},
-	makeObservableOptions: MakeObservableOptions = {}
+	initialValue: T
 ) {
 	return <K extends string>(name: K, options?: MobxStateOptions): MobxStateWithGetterAndSetter<K, T> => {
-		return new MobxState<K, T>(initialValue, name, annotations, makeObservableOptions, options) as MobxStateWithGetterAndSetter<K, T>
+		return new MobxState<K, T>(initialValue, name, options) as MobxStateWithGetterAndSetter<K, T>
 	}
 }
 
