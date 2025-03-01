@@ -11,8 +11,6 @@ class MobxState<K extends string, T> {
 	constructor(
 		initialValue: T,
 		name: K,
-		annotations: Record<string, any> = {},
-		makeObservableOptions: MakeObservableOptions = {},
 		options: MobxStateOptions = {}
 	) {
 		const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1)
