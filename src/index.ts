@@ -930,6 +930,7 @@ class MobxSaiFetch<T> {
  */
 export class MobxDebouncer {
 	private debouncedActions: Map<string, DebouncedAction> = new Map();
+	private actionRegistry: Map<string, Set<() => void>> = new Map();
 
 	/**
 	 * Позволяет создавать сложные debounce системы в одну строчку, с любыми операциями :)
@@ -993,22 +994,33 @@ export class MobxDebouncer {
 		groupKey: string = 'default'
 	): void => {
 		const actionKey = `${groupKey}_${key}`
-		const currentState = this.debouncedActions.get(actionKey)
 
+		if (!this.actionRegistry.has(actionKey)) {
+			this.actionRegistry.set(actionKey, new Set())
+		}
+
+		const actionSet = this.actionRegistry.get(actionKey)!
+		actionSet.add(action)
+
+		const currentState = this.debouncedActions.get(actionKey)
 		if (currentState?.timerId) {
 			clearTimeout(currentState.timerId)
 		}
 
 		const timerId = setTimeout(() => {
 			runInAction(() => {
-				action()
+				const actions = this.actionRegistry.get(actionKey)
+				if (actions) {
+					actions.forEach(act => act())
+					this.actionRegistry.delete(actionKey)
+				}
 				this.debouncedActions.delete(actionKey)
 			})
 		}, delay)
 
 		this.debouncedActions.set(actionKey, {
 			timerId,
-			pendingActions: [action]
+			pendingActions: Array.from(actionSet)
 		})
 	};
 
@@ -1020,17 +1032,22 @@ export class MobxDebouncer {
 	 */
 	flushDebouncedActions = (key: string | number, groupKey: string = 'default'): void => {
 		const actionKey = `${groupKey}_${key}`
+
 		const currentState = this.debouncedActions.get(actionKey)
-
-		if (currentState) {
+		if (currentState?.timerId) {
 			clearTimeout(currentState.timerId)
+		}
 
+		const actions = this.actionRegistry.get(actionKey)
+		if (actions) {
 			runInAction(() => {
-				currentState.pendingActions.forEach(action => action())
+				actions.forEach(action => action())
 			})
 
-			this.debouncedActions.delete(actionKey)
+			this.actionRegistry.delete(actionKey)
 		}
+
+		this.debouncedActions.delete(actionKey)
 	};
 
 	/**
@@ -1041,12 +1058,14 @@ export class MobxDebouncer {
 	 */
 	cancelDebouncedActions = (key: string | number, groupKey: string = 'default'): void => {
 		const actionKey = `${groupKey}_${key}`
-		const currentState = this.debouncedActions.get(actionKey)
 
+		const currentState = this.debouncedActions.get(actionKey)
 		if (currentState?.timerId) {
 			clearTimeout(currentState.timerId)
-			this.debouncedActions.delete(actionKey)
 		}
+
+		this.actionRegistry.delete(actionKey)
+		this.debouncedActions.delete(actionKey)
 	};
 
 	/**
@@ -1055,12 +1074,19 @@ export class MobxDebouncer {
 	 * @param groupKey - Ключ группировки
 	 */
 	cancelDebouncedActionsByGroup = (groupKey: string): void => {
+		const keysToDelete: string[] = []
+
 		for (const [key, value] of this.debouncedActions.entries()) {
 			if (key.startsWith(`${groupKey}_`)) {
 				clearTimeout(value.timerId)
-				this.debouncedActions.delete(key)
+				keysToDelete.push(key)
 			}
 		}
+
+		keysToDelete.forEach(key => {
+			this.actionRegistry.delete(key)
+			this.debouncedActions.delete(key)
+		})
 	};
 
 	/**
@@ -1071,6 +1097,8 @@ export class MobxDebouncer {
 		for (const [_, value] of this.debouncedActions.entries()) {
 			clearTimeout(value.timerId)
 		}
+
+		this.actionRegistry.clear()
 		this.debouncedActions.clear()
 	};
 }
