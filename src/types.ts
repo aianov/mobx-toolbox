@@ -93,6 +93,7 @@ export type MobxSaiInstance<T> = Partial<{
 		fromWhere?: "fromScroll" | null,
 		fetchWhat?: "top" | "bot" | null
 	) => MobxSaiInstance<T>
+	setScrollRef: (scrollRef: any) => MobxSaiInstance<T>
 }>
 
 

@@ -901,6 +901,25 @@ class MobxSaiFetch<T> {
 		this.isBotRejected = false
 		this.isBotFulfulled = true
 	}
+
+	setScrollRef(scrollRef: any) {
+		if (this.options.dataScope) {
+			this.options.dataScope.scrollRef = scrollRef
+
+			const handleScroll = (event: any) => {
+				const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
+				const scrollTop = contentOffset.y
+				const scrollHeight = contentSize.height
+				const clientHeight = layoutMeasurement.height
+
+				this.handleScrollUpdate(scrollTop, scrollHeight, clientHeight)
+			}
+
+			this.options.dataScope.onScroll = handleScroll
+		}
+
+		return this
+	}
 }
 
 // ========================== EXPORTS ==============================
