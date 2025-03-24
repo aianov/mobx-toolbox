@@ -1,5 +1,5 @@
-import { action, AnnotationsMap, makeAutoObservable, makeObservable, observable, onBecomeUnobserved } from 'mobx'
-import { FormErrors, FormStateOptions, FormValues, Identifiable, MobxSaiFetchOptions, MobxSaiInstance, MobxStateOptions, MobxStateWithGetterAndSetter, NestedKeyOf, UpdaterT, ValidationResult, Validator } from './types'
+import { action, AnnotationsMap, makeAutoObservable, makeObservable, observable, onBecomeUnobserved, runInAction } from 'mobx'
+import { DebouncedAction, FormErrors, FormStateOptions, FormValues, Identifiable, MobxSaiFetchOptions, MobxSaiInstance, MobxStateOptions, MobxStateWithGetterAndSetter, MobxUpdateInstance, NestedKeyOf, UpdaterT, ValidationResult, Validator } from './types'
 import { ValidatorBuilder } from './validators'
 export * from "./types"
 
@@ -922,6 +922,163 @@ class MobxSaiFetch<T> {
 	}
 }
 
+// ========================= MOBX DEBOUNCER ==============================
+
+/**
+ * Класс для управления отложенными действиями в MobX
+ * Позволяет группировать и откладывать выполнение действий
+ */
+export class MobxDebouncer {
+	private debouncedActions: Map<string, DebouncedAction> = new Map();
+
+	/**
+	 * Позволяет создавать сложные debounce системы в одну строчку, с любыми операциями :)
+	 * 
+	 * Телеграм: https://t.me/nics51
+	 *
+	 * @example
+	 * // some-store.ts
+	 * class PostInteractionsStore {
+	 * 	constructor() {
+	 * 		makeAutoObservable(this)
+	 * 	}
+	 * 
+	 * 	postUpdater: null | any = null
+	 * 	setPostUpdater = (updater: any) => this.postUpdater = updater
+	 * 
+	 * 	toggleLikePost = (postId: number, post: GetPostFeedResponse) => {
+	 * 		if (!this.postUpdater) return
+	 * 
+	 * 		runInAction(() => {
+	 * 			this.postUpdater(postId, "likesCount", (prev: number) => prev + (post?.isLiked ? -1 : 1))
+	 * 			this.postUpdater(postId, "isLiked", (prev: boolean) => !prev)
+	 * 		})
+	 * 
+	 * 		mobxDebouncer.debouncedAction(
+	 * 			postId,
+	 * 			() => console.log("КОЛЛБЭК"),
+	 * 			1000,
+	 * 			'like-fav'
+	 * 		)
+	 * 	}
+	 * 
+	 * 	toggleFavPost = (postId: number, post: GetPostFeedResponse) => {
+	 * 		if (!this.postUpdater) return
+	 * 
+	 * 		runInAction(() => {
+	 * 			this.postUpdater(postId, "favoritesCount", (prev: number) => prev + (post?.isFavorited ? -1 : 1))
+	 * 			this.postUpdater(postId, "isFavorited", (prev: boolean) => !prev)
+	 * 		})
+	 * 
+	 * 		mobxDebouncer.debouncedAction(
+	 * 			postId,
+	 * 			() => console.log("КОЛЛБЭК"),
+	 * 			1000,
+	 * 			'like-fav'
+	 * 		)
+	 * 	}
+	 * }
+	 * 
+	 * Теперь при каждом вызове toggleLikePost или toggleFavPost будет сбрасываться таймер и вызываться коллбэк через 1 секунду после остановки вызовов toggleLikePost и toggleFavPost
+	 * 
+	 * @param key - Уникальный идентификатор объекта (например, ID поста)
+	 * @param action - Функция, которую нужно выполнить
+	 * @param delay - Задержка в миллисекундах
+	 * @param groupKey - Ключ группировки для объединения разных типов действий
+	 */
+	debouncedAction = (
+		key: string | number,
+		action: () => void,
+		delay: number = 500,
+		groupKey: string = 'default'
+	): void => {
+		const actionKey = `${groupKey}_${key}`
+		const currentState = this.debouncedActions.get(actionKey)
+
+		if (currentState?.timerId) {
+			clearTimeout(currentState.timerId)
+		}
+
+		const pendingActions = currentState?.pendingActions || []
+		pendingActions.push(action)
+
+		const timerId = setTimeout(() => {
+			runInAction(() => {
+				const actionsToRun = this.debouncedActions.get(actionKey)?.pendingActions || []
+				actionsToRun.forEach(act => act())
+				this.debouncedActions.delete(actionKey)
+			})
+		}, delay)
+
+		this.debouncedActions.set(actionKey, {
+			timerId,
+			pendingActions
+		})
+	};
+
+	/**
+	 * Немедленно выполняет все отложенные действия для указанного ключа
+	 * 
+	 * @param key - Идентификатор объекта
+	 * @param groupKey - Ключ группировки
+	 */
+	flushDebouncedActions = (key: string | number, groupKey: string = 'default'): void => {
+		const actionKey = `${groupKey}_${key}`
+		const currentState = this.debouncedActions.get(actionKey)
+
+		if (currentState) {
+			clearTimeout(currentState.timerId)
+
+			runInAction(() => {
+				currentState.pendingActions.forEach(action => action())
+			})
+
+			this.debouncedActions.delete(actionKey)
+		}
+	};
+
+	/**
+	 * Отменяет все отложенные действия для указанного ключа без их выполнения
+	 * 
+	 * @param key - Идентификатор объекта
+	 * @param groupKey - Ключ группировки
+	 */
+	cancelDebouncedActions = (key: string | number, groupKey: string = 'default'): void => {
+		const actionKey = `${groupKey}_${key}`
+		const currentState = this.debouncedActions.get(actionKey)
+
+		if (currentState?.timerId) {
+			clearTimeout(currentState.timerId)
+			this.debouncedActions.delete(actionKey)
+		}
+	};
+
+	/**
+	 * Отменяет все отложенные действия по группе
+	 * 
+	 * @param groupKey - Ключ группировки
+	 */
+	cancelDebouncedActionsByGroup = (groupKey: string): void => {
+		for (const [key, value] of this.debouncedActions.entries()) {
+			if (key.startsWith(`${groupKey}_`)) {
+				clearTimeout(value.timerId)
+				this.debouncedActions.delete(key)
+			}
+		}
+	};
+
+	/**
+	 * Отменяет все отложенные действия
+	 * 
+	 */
+	cancelAllDebouncedActions = (): void => {
+		for (const [_, value] of this.debouncedActions.entries()) {
+			clearTimeout(value.timerId)
+		}
+		this.debouncedActions.clear()
+	};
+}
+
 // ========================== EXPORTS ==============================
 
 /**
@@ -1039,7 +1196,7 @@ export const m = new ValidationSchema()
  * Телеграм: https://t.me/nics51
  * 
  * @example
- * const updateComments = useMobxUpdate(commentsList)
+ * const commentsUpdate: MobxUpdateInstance<Comment> = useMobxUpdate(commentsList)
  * 
  * onClick={() => {
  * 	commentsUpdate(comment.id, "count", (prev) => prev+1) // prev++ НЕ РАБОТАЕТ
@@ -1054,7 +1211,7 @@ export const m = new ValidationSchema()
 export const useMobxUpdate = <T extends Identifiable>(
 	arrayOrObject: T[] | Record<string, T>,
 	annotations: AnnotationsMap<{ [key: string]: any }, never> = {},
-) => {
+): MobxUpdateInstance<T> => {
 	return <K extends NestedKeyOf<T>>(
 		id: string | number,
 		key: K,
@@ -1278,3 +1435,14 @@ export function mobxSaiFetch<T>(
 	if (id) fetchCache.set(id, instance)
 	return instance
 }
+
+// ========================== MOBX DEBOUNCER ==============================
+
+/**
+ * Позволяет создавать сложные debounce системы в одну строчку, с любыми операциями :)
+ * 
+ * Телеграм: https://t.me/nics51
+ *
+ * Этот стор позволяет делать за вас всю работу в области дебаунсов, прочитайте функции которые идут от mobxDebouncer)
+ */
+export const mobxDebouncer = new MobxDebouncer()

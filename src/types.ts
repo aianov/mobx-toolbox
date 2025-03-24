@@ -72,6 +72,11 @@ export type UpdaterT<T, K extends AnyNestedKeyOf<T>> =
 	| ((prevValue: GetTypeFromKey<T, K>) => GetTypeFromKey<T, K>)
 	| GetTypeFromKey<T, K>
 
+export type MobxUpdateInstance<T extends Identifiable = any> = <K extends NestedKeyOf<T>>(
+	id: string | number,
+	key: K,
+	updater: UpdaterT<T, K>
+) => void
 
 // ========================== MOBX SAI FETCH ==============================
 
@@ -135,4 +140,11 @@ export interface MobxSaiFetchDataScopeOptions {
 	isHaveMoreResKey: string | null
 	howMuchGettedToTop: number
 	setParams: null | ((newValue: any[] | ((prev: any[]) => any[])) => void) | any
+}
+
+// ========================== MOBX DEBOUNCER ==============================
+
+export interface DebouncedAction {
+	timerId: NodeJS.Timeout
+	pendingActions: Array<() => void>
 }

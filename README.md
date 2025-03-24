@@ -1,5 +1,120 @@
 # Mobx-toolkit, mini-lib for easy in MobX using
 
+# mobxDebouncer
+
+`mobxDebouncer` can help with any difficulty of debounce system by using 1 line of code :)
+
+## Usage
+
+```typescript
+// some-store.ts
+class TestStore {
+	constructor() {
+		makeAutoObservable(this)
+	}
+
+	postUpdater: null | MobxUpdateInstance<Post> = null
+	setPostUpdater = (updater: MobxUpdateInstance<Post>) =>
+		(this.postUpdater = updater)
+
+	toggleLikePost = (postId: number, post: GetPostFeedResponse) => {
+		if (!this.postUpdater) return
+
+		runInAction(() => {
+			this.postUpdater(
+				postId,
+				'likesCount',
+				(prev: number) => prev + (post?.isLiked ? -1 : 1)
+			)
+			this.postUpdater(postId, 'isLiked', (prev: boolean) => !prev)
+		})
+
+		mobxDebouncer.debouncedAction(
+			postId, // id of debounced action
+			() => console.log('CALLBACK'), // callback
+			1000, // delay
+			'like-fav' // group key
+		)
+	}
+
+	toggleFavPost = (postId: number, post: GetPostFeedResponse) => {
+		if (!this.postUpdater) return
+
+		runInAction(() => {
+			this.postUpdater(
+				postId,
+				'favoritesCount',
+				(prev: number) => prev + (post?.isFavorited ? -1 : 1)
+			)
+			this.postUpdater(postId, 'isFavorited', (prev: boolean) => !prev)
+		})
+
+		mobxDebouncer.debouncedAction(
+			postId,
+			() => console.log('CALLBACK'),
+			1000,
+			'like-fav'
+		)
+	}
+}
+
+// then you can use it in your component like this:
+// some-component.tsx
+const { currentTheme } = themeStore
+const { toggleLikePost, toggleFavPost } = postInteractionsStore
+
+const toggleLikeHandler = () => toggleLikePost(post?.id, post)
+const toggleFavHandler = () => toggleFavPost(post?.id, post)
+
+return (
+	<div>
+		<button onClick={toggleLikeHandler}>
+			{post?.isLiked ? 'Liked' : 'Like'}
+			{post?.likesCount}
+		</button>
+		<button onClick={toggleFavHandler}>
+			{post?.isFavorited ? 'Favorited' : 'Fav'}
+			{post?.favoritesCount}
+		</button>
+	</div>
+)
+```
+
+### Now we have 2 debounced actions, and they will be called only after 1 second of last call, and if we call them in 1 second, they will be called only once
+
+### Cool right? Just 1 line of code and you have debounced action with group key, and you can use it in any component, in any place, with any action in group.
+
+This is very useful for some cases, like when you need to debounce some actions, but you need to call them in one place, and you need to call them in any component, in any place, with any action in group.
+
+mobxDebouncer can reduce your code by 2/3+ times, depending on the volume of your functionality
+
+### mobxDebouncer also have `cancelAllDebouncedActions` `cancelDebouncedActionsByGroup` `cancelDebouncedActions` and `flushDebouncedActions` functions.
+
+### `cancelAllDebouncedActions` - Cancel all debounced actions
+
+### `cancelDebouncedActionsByGroup` - Cancel all debounced actions by group key
+
+### `cancelDebouncedActions` - Cancel debounced action by id
+
+### `flushDebouncedActions` - Flush all debounced actions
+
+### But the main and most useful/important function is `debouncedAction` so i will explain options only for it
+
+# Options
+
+## `mobxDebouncer.debouncedAction`
+
+Function `mobxDebouncer.debouncedAction` 4 params, needs do your life with debounce much easier
+
+### Params
+
+| Param      | Type         | Description                   | Initial | Required |
+| ---------- | ------------ | ----------------------------- | ------- | -------- |
+| `id`       | `string`     | Id of debounced action        |         | `true`   |
+| `callback` | `() => void` | Callback to call              |         | `true`   |
+| `delay`    | `number`     | Delay of debounce             | `1000`  | `false`  |
+| `groupKey` | `string`     | Group key of debounced action | `null`  | `false`  |
+
 # mobxSaiFetch
 
 `mobxSaiFetch` can reduce your actions in mobx, and make life easier :)
