@@ -427,125 +427,150 @@ class MobxSaiFetch<T> {
 	options: MobxSaiFetchOptions = defaultOptions;
 
 	setupScrollTracking() {
-		if (!this.options.dataScope?.class) return
+		if (!this.options.dataScope?.class && !this.options.dataScope?.scrollRef) return
 
-		const element = document.querySelector(`.${this.options.dataScope.class}`)
-		if (!element) {
-			console.warn("Scroll tracking element not found.")
-			return
-		}
-
-		const updateScrollProgress = () => {
-			const { scrollTop, scrollHeight, clientHeight } = element
-			const { topPercentage, botPercentage, startFrom } = this.options.dataScope!
-			const {
-				gettedToTop: { gettedToTop, setGettedToTop },
-				isHaveMoreBot: { isHaveMoreBot, setIsHaveMoreBot },
-				isHaveMoreTop: { isHaveMoreTop, setIsHaveMoreTop },
-				options: { dataScope: {
-					relativeParamsKey,
-					upOrDownParamsKey,
-					howMuchGettedToTop
-				} },
-				isTopPending,
-				isBotPending,
-			} = this
-
-			this.scrollProgress = Math.round((scrollTop / (scrollHeight - clientHeight)) * 100)
-
-			// === FETCH TOP ===
-			if (
-				topPercentage !== null &&
-				this.scrollProgress <= topPercentage! &&
-				!isTopPending &&
-				isHaveMoreTop
-			) {
-				if (startFrom == 'top' && gettedToTop >= -(howMuchGettedToTop! - 1)) return
-
-				console.log("FETCH TOP")
-				setGettedToTop(p => {
-					if ((p + 1) >= howMuchGettedToTop! + 1) setIsHaveMoreBot(true)
-					return p + 1
-				})
-				this.setTopPending()
-
-				// @ts-ignore
-				if (this?.data?.[this?.options?.fetchAddTo?.path]?.[0]?.id) {
-					console.warn(`We can't find your relative Id`)
-					return
-				}
-
-				this.oldOptions = this.options
-				this.options = {
-					...this.options,
-					isSetData: true,
-					fetchAddTo: {
-						...this.options.fetchAddTo,
-						addTo: 'start'
-					}
-				}
-
-				this.options.dataScope.setParams((prev: any) => {
-					const newParams = prev
-					// @ts-ignore
-					if (relativeParamsKey) newParams[relativeParamsKey] = this.data[this.options.fetchAddTo.path][0].id
-					if (upOrDownParamsKey) newParams[upOrDownParamsKey] = true
-					return newParams
-				})
-
-				if (this.promiseOrFunction) this.fetch(this.promiseOrFunction, 'fromScroll', 'top')
+		// Для веб-приложений
+		if (this.options.dataScope?.class && typeof document !== 'undefined') {
+			const element = document.querySelector(`.${this.options.dataScope.class}`)
+			if (!element) {
+				console.warn("Scroll tracking element not found.")
+				return
 			}
 
-			// === FETCH BOT ===
-			if (
-				botPercentage !== null &&
-				this.scrollProgress >= botPercentage! &&
-				!isBotPending &&
-				this.data &&
-				this.options.fetchAddTo.path &&
-				// @ts-ignore
-				this.data[this.options.fetchAddTo.path] &&
-				this.options.dataScope.setParams &&
-				isHaveMoreBot
-			) {
-				if (startFrom == 'bot' && gettedToTop <= howMuchGettedToTop!) return
-
-				console.log("FETCH BOT")
-				setGettedToTop(p => {
-					if ((p - 1) <= howMuchGettedToTop! - 1) setIsHaveMoreTop(true)
-					return p - 1
-				})
-				this.setBotPending()
-
-				// @ts-ignore
-				if (!this.data[this.options.fetchAddTo.path][this.data[this.options.fetchAddTo.path]?.length - 1].id) {
-					console.warn(`We can't find your relative Id`)
-					return
-				}
-
-				this.oldOptions = this.options
-				this.options = {
-					...this.options,
-					isSetData: true,
-					fetchAddTo: {
-						...this.options.fetchAddTo,
-						addTo: 'end'
-					}
-				}
-
-				this.options.dataScope.setParams((prev: any) => {
-					const newParams = prev
-					// @ts-ignore
-					if (relativeParamsKey) newParams[relativeParamsKey] = this.data[this.options.fetchAddTo.path][this.data[this.options.fetchAddTo.path]?.length - 1].id
-					if (upOrDownParamsKey) newParams[upOrDownParamsKey] = false
-					return newParams
-				})
-
-				if (this.promiseOrFunction) this.fetch(this.promiseOrFunction, 'fromScroll', 'bot')
+			const updateScrollProgress = () => {
+				const { scrollTop, scrollHeight, clientHeight } = element
+				this.handleScrollUpdate(scrollTop, scrollHeight, clientHeight)
 			}
+
+			element.addEventListener("scroll", updateScrollProgress)
+		}
+		// Для React Native
+		else if (this.options.dataScope?.scrollRef) {
+			const scrollRef = this.options.dataScope.scrollRef
+
+			// Функция для обработки события скролла в React Native
+			const handleScroll = (event: any) => {
+				const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
+				const scrollTop = contentOffset.y
+				const scrollHeight = contentSize.height
+				const clientHeight = layoutMeasurement.height
+
+				this.handleScrollUpdate(scrollTop, scrollHeight, clientHeight)
+			}
+
+			// Сохраняем функцию обработчика, чтобы можно было использовать в компоненте
+			this.options.dataScope.onScroll = handleScroll
+		}
+	}
+
+	// Выделяем логику обработки скролла в отдельный метод
+	handleScrollUpdate(scrollTop: number, scrollHeight: number, clientHeight: number) {
+		const { topPercentage, botPercentage, startFrom } = this.options.dataScope!
+		const {
+			gettedToTop: { gettedToTop, setGettedToTop },
+			isHaveMoreBot: { isHaveMoreBot, setIsHaveMoreBot },
+			isHaveMoreTop: { isHaveMoreTop, setIsHaveMoreTop },
+			options: { dataScope: {
+				relativeParamsKey,
+				upOrDownParamsKey,
+				howMuchGettedToTop
+			} },
+			isTopPending,
+			isBotPending,
+		} = this
+
+		this.scrollProgress = Math.round((scrollTop / (scrollHeight - clientHeight)) * 100)
+
+		// === FETCH TOP ===
+		if (
+			topPercentage !== null &&
+			this.scrollProgress <= topPercentage! &&
+			!isTopPending &&
+			isHaveMoreTop
+		) {
+			if (startFrom == 'top' && gettedToTop >= -(howMuchGettedToTop! - 1)) return
+
+			console.log("FETCH TOP")
+			setGettedToTop(p => {
+				if ((p + 1) >= howMuchGettedToTop! + 1) setIsHaveMoreBot(true)
+				return p + 1
+			})
+			this.setTopPending()
+
+			// @ts-ignore
+			if (this?.data?.[this?.options?.fetchAddTo?.path]?.[0]?.id) {
+				console.warn(`We can't find your relative Id`)
+				return
+			}
+
+			this.oldOptions = this.options
+			this.options = {
+				...this.options,
+				isSetData: true,
+				fetchAddTo: {
+					...this.options.fetchAddTo,
+					addTo: 'start'
+				}
+			}
+
+			this.options.dataScope.setParams((prev: any) => {
+				const newParams = prev
+				// @ts-ignore
+				if (relativeParamsKey) newParams[relativeParamsKey] = this.data[this.options.fetchAddTo.path][0].id
+				if (upOrDownParamsKey) newParams[upOrDownParamsKey] = true
+				return newParams
+			})
+
+			if (this.promiseOrFunction) this.fetch(this.promiseOrFunction, 'fromScroll', 'top')
 		}
 
-		element.addEventListener("scroll", updateScrollProgress)
+		// === FETCH BOT ===
+		if (
+			botPercentage !== null &&
+			this.scrollProgress >= botPercentage! &&
+			!isBotPending &&
+			this.data &&
+			this.options.fetchAddTo.path &&
+			// @ts-ignore
+			this.data[this.options.fetchAddTo.path] &&
+			this.options.dataScope.setParams &&
+			isHaveMoreBot
+		) {
+			if (startFrom == 'bot' && gettedToTop <= howMuchGettedToTop!) return
+
+			console.log("FETCH BOT")
+			setGettedToTop(p => {
+				if ((p - 1) <= howMuchGettedToTop! - 1) setIsHaveMoreTop(true)
+				return p - 1
+			})
+			this.setBotPending()
+
+			// @ts-ignore
+			if (!this.data[this.options.fetchAddTo.path][this.data[this.options.fetchAddTo.path]?.length - 1].id) {
+				console.warn(`We can't find your relative Id`)
+				return
+			}
+
+			this.oldOptions = this.options
+			this.options = {
+				...this.options,
+				isSetData: true,
+				fetchAddTo: {
+					...this.options.fetchAddTo,
+					addTo: 'end'
+				}
+			}
+
+			this.options.dataScope.setParams((prev: any) => {
+				const newParams = prev
+				// @ts-ignore
+				if (relativeParamsKey) newParams[relativeParamsKey] = this.data[this.options.fetchAddTo.path][this.data[this.options.fetchAddTo.path]?.length - 1].id
+				if (upOrDownParamsKey) newParams[upOrDownParamsKey] = false
+				return newParams
+			})
+
+			if (this.promiseOrFunction) this.fetch(this.promiseOrFunction, 'fromScroll', 'bot')
+		}
 	}
 
 	fetch = (promiseOrFunction: Promise<T> | (() => Promise<T>), fromWhere: 'fromScroll' | null, fetchWhat: 'top' | 'bot' | null = null): this => {

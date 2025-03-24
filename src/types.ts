@@ -125,6 +125,8 @@ export interface MobxSaiFetchFetchAddToOptions {
 export interface MobxSaiFetchDataScopeOptions {
 	class: string | null
 	startFrom: 'bot' | 'top'
+	scrollRef?: any
+	onScroll?: (event: any) => void
 	topPercentage: number | null
 	botPercentage: number | null
 	relativeParamsKey: string | null
