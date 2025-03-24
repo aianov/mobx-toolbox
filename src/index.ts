@@ -999,20 +999,16 @@ export class MobxDebouncer {
 			clearTimeout(currentState.timerId)
 		}
 
-		const pendingActions = currentState?.pendingActions || []
-		pendingActions.push(action)
-
 		const timerId = setTimeout(() => {
 			runInAction(() => {
-				const actionsToRun = this.debouncedActions.get(actionKey)?.pendingActions || []
-				actionsToRun.forEach(act => act())
+				action()
 				this.debouncedActions.delete(actionKey)
 			})
 		}, delay)
 
 		this.debouncedActions.set(actionKey, {
 			timerId,
-			pendingActions
+			pendingActions: [action]
 		})
 	};
 
