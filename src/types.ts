@@ -114,6 +114,7 @@ export interface MobxSaiFetchOptions {
 	cacheSystem: Partial<MobxSaiFetchCacheSystemOptions>
 	dataScope: Partial<MobxSaiFetchDataScopeOptions>
 	fetchAddTo: Partial<MobxSaiFetchFetchAddToOptions>
+	needPending?: boolean
 }
 
 export interface MobxSaiFetchCacheSystemOptions {

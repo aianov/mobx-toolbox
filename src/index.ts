@@ -337,6 +337,7 @@ const defaultOptions: MobxSaiFetchOptions = {
 	fetchIfPending: false,
 	fetchIfHaveData: true,
 	isSetData: true,
+	needPending: true,
 	cacheSystem: {
 		limit: null,
 		setCache: null
@@ -429,7 +430,6 @@ class MobxSaiFetch<T> {
 	setupScrollTracking() {
 		if (!this.options.dataScope?.class && !this.options.dataScope?.scrollRef) return
 
-		// Для веб-приложений
 		if (this.options.dataScope?.class && typeof document !== 'undefined') {
 			const element = document.querySelector(`.${this.options.dataScope.class}`)
 			if (!element) {
@@ -446,9 +446,6 @@ class MobxSaiFetch<T> {
 		}
 		// Для React Native
 		else if (this.options.dataScope?.scrollRef) {
-			const scrollRef = this.options.dataScope.scrollRef
-
-			// Функция для обработки события скролла в React Native
 			const handleScroll = (event: any) => {
 				const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
 				const scrollTop = contentOffset.y
@@ -458,12 +455,10 @@ class MobxSaiFetch<T> {
 				this.handleScrollUpdate(scrollTop, scrollHeight, clientHeight)
 			}
 
-			// Сохраняем функцию обработчика, чтобы можно было использовать в компоненте
 			this.options.dataScope.onScroll = handleScroll
 		}
 	}
 
-	// Выделяем логику обработки скролла в отдельный метод
 	handleScrollUpdate(scrollTop: number, scrollHeight: number, clientHeight: number) {
 		const { topPercentage, botPercentage, startFrom } = this.options.dataScope!
 		const {
@@ -597,8 +592,10 @@ class MobxSaiFetch<T> {
 		}
 
 		if (fromWhere == null && fetchWhat == null) {
-			this.setPending()
-			this.status = "pending"
+			if (this.options.needPending) {
+				this.setPending()
+				this.status = "pending"
+			}
 			this.error = null
 		}
 
