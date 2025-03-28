@@ -386,6 +386,10 @@ class MobxSaiFetch<T> {
 		}
 		makeAutoObservable(this, {}, { autoBind: true })
 		this.setupScrollTracking()
+
+		if (!this.options.needPending) {
+			this.status = "fulfilled"
+		}
 	}
 
 	isPending = false;
@@ -444,7 +448,8 @@ class MobxSaiFetch<T> {
 
 			element.addEventListener("scroll", updateScrollProgress)
 		}
-		// Для React Native
+
+		// React Native
 		else if (this.options.dataScope?.scrollRef) {
 			const handleScroll = (event: any) => {
 				const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
@@ -579,6 +584,7 @@ class MobxSaiFetch<T> {
 			fetchIfPending,
 			fetchIfHaveData,
 			fetchAddTo,
+			needPending
 		} = this.options
 
 		if (!fetchIfPending && this.isPending) {
@@ -592,7 +598,7 @@ class MobxSaiFetch<T> {
 		}
 
 		if (fromWhere == null && fetchWhat == null) {
-			if (this.options.needPending) {
+			if (needPending) {
 				this.setPending()
 				this.status = "pending"
 			}
