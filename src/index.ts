@@ -998,12 +998,7 @@ export class MobxDebouncer {
 	): void => {
 		const actionKey = `${groupKey}_${key}`
 
-		if (!this.actionRegistry.has(actionKey)) {
-			this.actionRegistry.set(actionKey, new Set())
-		}
-
-		const actionSet = this.actionRegistry.get(actionKey)!
-		actionSet.add(action)
+		this.actionRegistry.set(actionKey, new Set([action]))
 
 		const currentState = this.debouncedActions.get(actionKey)
 		if (currentState?.timerId) {
@@ -1023,7 +1018,7 @@ export class MobxDebouncer {
 
 		this.debouncedActions.set(actionKey, {
 			timerId,
-			pendingActions: Array.from(actionSet)
+			pendingActions: Array.from(this.actionRegistry.get(actionKey)!)
 		})
 	};
 
