@@ -1226,20 +1226,26 @@ export const m = new ValidationSchema()
  * 
  * Приятного использования ;)
  * 
- * @param arrayOrObject - Массив или объект, который нужно обновить.
+ * @param arrayOrObjectGetter - Массив или объект, который нужно обновить.
  * @param annotations - объект аннотаций MobX, использовать как { переданное имя: observable... }
  * @returns Функция для обновления состояния элемента.
  */
 export const useMobxUpdate = <T extends Identifiable>(
-	arrayOrObject: T[] | Record<string, T>,
+	arrayOrObjectGetter: () => T[] | Record<string, T> | T[] | Record<string, T>,
 	annotations: AnnotationsMap<{ [key: string]: any }, never> = {},
 ): MobxUpdateInstance<T> => {
+	const updater = new MobxUpdater(annotations)
+
 	return <K extends NestedKeyOf<T>>(
 		id: string | number,
 		key: K,
-		updater: UpdaterT<T, K>
+		updaterFn: UpdaterT<T, K>
 	) => {
-		(new MobxUpdater(annotations)).updateState(arrayOrObject, id, key, updater)
+		const arrayOrObject = typeof arrayOrObjectGetter === 'function'
+			? arrayOrObjectGetter()
+			: arrayOrObjectGetter
+
+		updater.updateState(arrayOrObject, id, key, updaterFn)
 	}
 }
 

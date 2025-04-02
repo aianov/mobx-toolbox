@@ -355,17 +355,55 @@ Function `mobxSaiFetch` 2 params, needs do your life with requests much easier
 ## Usage
 
 ```typescript
+// comment-interactions.ts
+commentUpdater: MobxUpdateInstance<GetCommentsResponse> | null = null
+setCommentUpdater = (updater: MobxUpdateInstance<GetCommentsResponse>) => this.commentUpdater = updater
+
+// comment-actions.ts
+getCommentsAction = async () => {
+	const { selectedPost } = postInteractionsStore
+	const {
+		setCommentUpdater
+	} = commentInteractionsStore
+
+	if (!selectedPost?.id) return
+	const postId = selectedPost.id
+
+	try {
+		const params = mobxState<GetCommentsParams>({
+			relativeId: null,
+			limit: 20,
+			up: false
+		})("params")
+
+		this.comments = mobxSaiFetch(() => getComments(postId, params.params))
+
+		const disposer = reaction(
+			() => this.comments?.data,
+			(data) => {
+				if (!data) return
+
+				setCommentUpdater(useMobxUpdate(() => data?.items)) // initialize updater with data list
+
+				disposer()
+			}
+		)
+	} catch (error) {
+		console.log("Error getting comments", error)
+	}
+}
+
 // SomeComponent.tsx
-const { commentsList } = commentsStore // store from MobX
-const updateComments = useMobxUpdate(commentsList)
+const { comments: { data } } = commentsActionsStore
+const { commentUpdater } = commentInteractionsStore
 
 return (
 	<div>
-		{commentsList.map(comment => (
+		{data?.items?.map(comment => (
 			<button
 				key={comment.id}
 				onClick={() => {
-					updateComments(
+					commentUpdater!(
 						comment.id, // id
 						'likes', // path to update
 						prev => prev + 1 // update callback [! DONT USER prev++ !]
