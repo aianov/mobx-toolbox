@@ -576,8 +576,8 @@ class MobxSaiFetch<T> {
 	fetch = (promiseOrFunction: Promise<T> | (() => Promise<T>), fromWhere: 'fromScroll' | null, fetchWhat: 'top' | 'bot' | null = null): this => {
 		const {
 			gettedToTop: { gettedToTop },
-			isHaveMoreBot: { setIsHaveMoreBot },
-			isHaveMoreTop: { setIsHaveMoreTop }
+			isHaveMoreBot: { setIsHaveMoreBot, isHaveMoreBot },
+			isHaveMoreTop: { setIsHaveMoreTop, isHaveMoreTop }
 		} = this
 		const {
 			dataScope: { startFrom, isHaveMoreResKey, howMuchGettedToTop },
@@ -588,12 +588,22 @@ class MobxSaiFetch<T> {
 		} = this.options
 
 		if (!fetchIfPending && this.isPending) {
-			console.log("Fetch is already pending and fetchIfPending is false.")
+			console.warn("Fetch is already pending and fetchIfPending is false.")
 			return this
 		}
 
 		if (!fetchIfHaveData && this.data && !fromWhere) {
 			console.warn("Data already exists and fetchIfHaveData is false.")
+			return this
+		}
+
+		if (fetchWhat === 'bot' && !isHaveMoreBot) {
+			console.warn("Skipping BOT fetch because isHaveMoreBot is false")
+			return this
+		}
+
+		if (fetchWhat === 'top' && !isHaveMoreTop) {
+			console.warn("Skipping TOP fetch because isHaveMoreTop is false")
 			return this
 		}
 
@@ -615,21 +625,20 @@ class MobxSaiFetch<T> {
 				if (fromWhere == null && fetchWhat == null) {
 					this.status = "fulfilled"
 					this.setFulfilled()
+					if (isHaveMoreResKey && typeof result === 'object' && result !== null && isHaveMoreResKey in result) {
+						setIsHaveMoreBot(result[isHaveMoreResKey as keyof typeof result] as boolean)
+					}
 				} else {
 					if (fetchWhat == 'bot') {
 						this.setBotFulfilled()
-						// @ts-ignore
-						if (result[isHaveMoreResKey] != undefined) {
-							// @ts-ignore
-							setIsHaveMoreBot(result[isHaveMoreResKey])
+						if (isHaveMoreResKey && typeof result === 'object' && result !== null && isHaveMoreResKey in result) {
+							setIsHaveMoreBot(result[isHaveMoreResKey as keyof typeof result] as boolean)
 						} else console.warn(`BOT FETCH: Can't find isHaveMore from passed isHaveMoreResKey 'result[isHaveMoreResKey]'`)
 					}
 					if (fetchWhat == 'top') {
 						this.setTopFulfilled()
-						// @ts-ignore
-						if (result[isHaveMoreResKey] != undefined) {
-							// @ts-ignore
-							setIsHaveMoreTop(result[isHaveMoreResKey])
+						if (isHaveMoreResKey && typeof result === 'object' && result !== null && isHaveMoreResKey in result) {
+							setIsHaveMoreTop(result[isHaveMoreResKey as keyof typeof result] as boolean)
 						} else console.warn(`TOP FETCH: Can't find isHaveMore from passed isHaveMoreResKey 'result[isHaveMoreResKey]'`)
 					}
 				}
@@ -920,6 +929,44 @@ class MobxSaiFetch<T> {
 
 			this.options.dataScope.onScroll = handleScroll
 		}
+
+		return this
+	}
+
+	reset = (): this => {
+		this.isPending = false
+		this.isFulfilled = false
+		this.isRejected = false
+		this.status = "pending"
+		this.data = null
+		this.error = null
+
+		this.addedToEndCount = 0
+		this.addedToStartCount = 0
+		this.fetchedCount = 0
+
+		this.scrollProgress = 0
+		this.gettedToTop.setGettedToTop(0)
+		this.scrollCachedData.setScrollCachedData([])
+
+		this.botStatus = ""
+		this.topStatus = ""
+
+		this.isBotPending = false
+		this.isBotRejected = false
+		this.isBotFulfulled = false
+
+		this.isTopPending = false
+		this.isTopRejected = false
+		this.isTopFulfulled = false
+
+		this.topError = null
+		this.botError = null
+
+		this.isHaveMoreBot.setIsHaveMoreBot(true)
+		this.isHaveMoreTop.setIsHaveMoreTop(true)
+
+		this.oldOptions = null
 
 		return this
 	}
@@ -1462,6 +1509,16 @@ export function mobxSaiFetch<T>(
 
 	if (id) fetchCache.set(id, instance)
 	return instance
+}
+
+/**
+ * Очищает кэш экземпляра класса MobxSaiFetch, что приводит все состояния к начальным значениям
+ * 
+ * @param id - id запроса (Необязательный)
+ */
+export function clearMobxSaiFetchCache(id?: string): void {
+	if (id) fetchCache.delete(id)
+	else fetchCache.clear()
 }
 
 // ========================== MOBX DEBOUNCER ==============================
