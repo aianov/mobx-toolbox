@@ -1,5 +1,69 @@
 # Mobx-toolkit, mini-lib for easy in MobX using
 
+# mobxSaiHandler
+
+`mobxSaiHandler` is a super simple way to handle `data`/`error` reactions from any MobX-powered API state (like MobxSai) using just 1 line of code 🙌
+
+## Usage
+
+```ts
+// some-store.ts
+class FeedStore {
+	constructor() {makeAutoObservable(this)}
+
+	postsFeed: MobxSaiInstance<VirtualList<GetPostFeedResponse[]>> = {}
+
+	getPostsFeedAction = () => {
+		this.postsFeed = mobxSaiFetch(getPostsFeed())
+
+		mobxSaiHandler(
+			this.postsFeed,
+			(data) => {
+				console.log('Loaded posts:', data)
+			},
+			(error) => {
+				console.log('Something went wrong:', error)
+			},
+		)
+	}
+}
+```
+
+### Now we just call `mobxSaiHandler`, pass in our sai instance, and boom — we get clean success and error handling in one place, no reaction boilerplate, no disposers, nothing else needed.
+
+## What's it for?
+
+Sometimes you get tired of writing `reaction(() => [data, error], ...)` every time you want to check when your `MobxSaiInstance` updates.  
+This thing solves that. You just pass it in, give it what to do on success and on error, and it does the rest — **including auto disposing itself after first fire**.
+
+It works in **stores**, in **components**, in **hooks**, anywhere you want to react to sai updates ✨
+
+## `mobxSaiHandler` also has support for type guard!
+
+If you want to make sure your `data` is exactly what you expect — just pass a guard as the 4th param.  
+Super handy when `data` could be `null`, `Error`, or anything else.
+
+## Options
+
+### `mobxSaiHandler`
+
+Takes 4 simple params:
+
+| Param      | Type         | Description                   | Initial | Required |
+| ---------- | ------------ | ----------------------------- | ------- | -------- |
+| `sai`       | `MobxSaiInstance<T>`     | Your sai instance        |         | ✅  |
+| `onSuccess`    | `(data: T) => void`     | Callback that fires when data is valid             |  | ✅  |
+| `onError` | `(error: any) => void`     | Callback that fires if there's an error |   | ❌  |
+| `guard` | `(data: unknown) => data is T`     | Optional type guard to verify `data` before calling `onSuccess` |   | ❌  |
+
+## Why it’s useful?
+
+- ✅ Replaces all that reaction boilerplate
+- ✅ Auto-disposes after 1 use
+- ✅ Works with or without a type guard
+- ✅ Helps reduce code when working with async data in MobX
+- ✅ You can use it in literally 1 line, anywhere
+
 # mobxDebouncer
 
 `mobxDebouncer` can help with any difficulty of debounce system by using 1 line of code :)

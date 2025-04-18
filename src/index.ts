@@ -1,4 +1,4 @@
-import { action, AnnotationsMap, makeAutoObservable, makeObservable, observable, onBecomeUnobserved, runInAction } from 'mobx'
+import { action, AnnotationsMap, IReactionDisposer, makeAutoObservable, makeObservable, observable, onBecomeUnobserved, reaction, runInAction } from 'mobx'
 import { DebouncedAction, FormErrors, FormStateOptions, FormValues, Identifiable, MobxSaiFetchOptions, MobxSaiInstance, MobxStateOptions, MobxStateWithGetterAndSetter, MobxUpdateInstance, NestedKeyOf, UpdaterT, ValidationResult, Validator } from './types'
 import { ValidatorBuilder } from './validators'
 export * from "./types"
@@ -1531,3 +1531,51 @@ export function clearMobxSaiFetchCache(id?: string): void {
  * Этот стор позволяет делать за вас всю работу в области дебаунсов, прочитайте функции которые идут от mobxDebouncer)
  */
 export const mobxDebouncer = new MobxDebouncer()
+
+// ========================== MOBX SAI HANDLER ==============================
+
+/**
+ * Создаёт временную MobX-реакцию для обработки данных из MobxSaiInstance.
+ * 
+ * Эта утилита предназначена для случаев, когда тебе нужно отреагировать на результат запроса (успешный или с ошибкой),
+ * хранящийся в Mobx-подобной структуре с полями `data` и `error`, и автоматически очистить реакцию после одного срабатывания.
+ * 
+ * 📌 Преимущества:
+ * - Автоматическое управление жизненным циклом (авто-диспоуз).
+ * - Типизированная обработка успешного и ошибочного ответа.
+ * - Возможность передать кастомный type guard для уточнения типа `data`.
+ * 
+ * @template T - Тип успешного значения `data`, например: `VirtualList<GetPostFeedResponse[]>`
+ * 
+ * @param saiInctance - Обьект из функции mobxSaiFetch с полями `data` и `error` и тд...
+ * @param onSuccess - Функция-обработчик, вызывается при наличии корректного `data`
+ * @param onError - (необязательно) Функция-обработчик, вызывается при наличии `error`
+ * @param guard - (необязательно) Type guard-функция для проверки типа `data`
+ * 
+ * @returns disposer - Функция для ручного отключения реакции, если нужно
+ */
+export function mobxSaiHandler<T>(
+	sai: MobxSaiInstance<T>,
+	onSuccess: (data: T) => void,
+	onError?: (error: any) => void,
+	guard?: (data: unknown) => data is T
+): IReactionDisposer {
+	const disposer = reaction(
+		() => [sai.data, sai.error] as const,
+		([data, error]) => {
+			if (error) {
+				onError?.(error)
+				disposer()
+				return
+			}
+
+			if (data && (guard ? guard(data) : true)) {
+				onSuccess(data as T)
+				disposer()
+				return
+			}
+		}
+	)
+
+	return disposer
+}
