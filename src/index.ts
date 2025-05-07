@@ -752,7 +752,7 @@ class MobxSaiFetch<T> {
 										// @ts-ignore
 										const newList = fetchAddTo?.addTo == 'start' ? [...prev, ...[...result[fetchAddTo.path]]?.reverse()] : [...[...result[fetchAddTo.path]]?.reverse(), ...prev]
 										if (this.options.cacheSystem.limit) {
-											if (arrCount >= this.options.cacheSystem.limit) {
+											if (arrCount >= this.options.cacheSystem.limit && this.options.cacheSystem?.setCache) {
 												// @ts-ignore
 												this.options.cacheSystem.setCache(newList)
 											}
@@ -762,7 +762,7 @@ class MobxSaiFetch<T> {
 									// @ts-ignore
 									const newList = fetchAddTo?.addTo == 'start' ? [...prev, ...result[fetchAddTo.path]] : [...result[fetchAddTo.path], ...prev]
 									if (this.options.cacheSystem.limit) {
-										if (arrCount >= this.options.cacheSystem.limit) {
+										if (arrCount >= this.options.cacheSystem.limit && this.options.cacheSystem?.setCache) {
 											// @ts-ignore
 											this.options.cacheSystem.setCache(newList)
 										}
@@ -773,7 +773,7 @@ class MobxSaiFetch<T> {
 								const newList = result[fetchAddTo.path]
 								const arrCount = newList?.length
 								if (this.options.cacheSystem.limit) {
-									if (arrCount >= this.options.cacheSystem.limit) {
+									if (arrCount >= this.options.cacheSystem.limit && this.options.cacheSystem?.setCache) {
 										// @ts-ignore
 										this.options.cacheSystem.setCache(fetchAddTo?.isSetReversedArr ? newList?.reverse() : newList)
 									}
@@ -1470,8 +1470,8 @@ export function mobxSaiFetch<T>(
 		}
 		if (instance.fetch) {
 			var cachedArr: string | any[] = []
-			if (options.cacheSystem!.setCache && !instance.data && options.cacheSystem!.limit) {
-				options.cacheSystem!.setCache(prev => {
+			if (options.cacheSystem?.setCache && !instance.data && options.cacheSystem?.limit) {
+				options.cacheSystem.setCache(prev => {
 					if (prev?.length == 0 || (prev?.length < options.cacheSystem!.limit!)) {
 						return prev
 					}
