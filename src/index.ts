@@ -340,7 +340,7 @@ const defaultOptions: MobxSaiFetchOptions = {
 	needPending: true,
 	cacheSystem: {
 		limit: null,
-		setCache: null
+		setCache: () => { }
 	},
 	dataScope: {
 		class: null,
