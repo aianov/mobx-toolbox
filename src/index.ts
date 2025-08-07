@@ -1,40 +1,40 @@
-import { action, AnnotationsMap, IReactionDisposer, makeAutoObservable, makeObservable, observable, onBecomeUnobserved, reaction, runInAction } from 'mobx'
-import { DebouncedAction, FormErrors, FormStateOptions, FormValues, Identifiable, MobxSaiFetchOptions, MobxSaiInstance, MobxStateOptions, MobxStateWithGetterAndSetter, MobxUpdateInstance, NestedKeyOf, UpdaterT, ValidationResult, Validator } from './types'
-import { ValidatorBuilder } from './validators'
-export * from "./types"
+import { action, AnnotationsMap, IReactionDisposer, makeAutoObservable, makeObservable, observable, onBecomeUnobserved, reaction, runInAction } from 'mobx';
+import { DebouncedAction, FormErrors, FormStateOptions, FormValues, Identifiable, MobxSaiFetchOptions, MobxSaiInstance, MobxStateOptions, MobxStateWithGetterAndSetter, MobxUpdateInstance, NestedKeyOf, UpdaterT, ValidationResult, Validator } from './types';
+import { ValidatorBuilder } from './validators';
+export * from "./types";
 
 // ========================== MOBX STATE ==============================
 
 class MobxState<K extends string, T> {
-	[key: string]: any
+	[key: string]: any;
 
 	constructor(
 		initialValue: T,
 		name: K,
 		options: MobxStateOptions = {}
 	) {
-		const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1)
-		const resetValue = initialValue
+		const capitalizedName = name.charAt(0).toUpperCase() + name.slice(1);
+		const resetValue = initialValue;
 
-		this[name] = initialValue as this[K]
+		this[name] = initialValue as this[K];
 
 		this[`set${capitalizedName}`] = (newValue: T | ((prev: T) => T)) => {
 			if (typeof newValue === "function") {
-				this[name] = (newValue as (prev: T) => T)(this[name] as T) as this[K]
+				this[name] = (newValue as (prev: T) => T)(this[name] as T) as this[K];
 			} else {
-				this[name] = newValue as this[K]
+				this[name] = newValue as this[K];
 			}
-		}
+		};
 
 		makeObservable(this, {
 			[name]: observable,
 			[`set${capitalizedName}`]: action,
-		} as any)
+		} as any);
 
 		if (options.reset) {
 			onBecomeUnobserved(this, name, () => {
-				this[name] = resetValue as this[K]
-			})
+				this[name] = resetValue as this[K];
+			});
 		}
 	}
 }
@@ -70,9 +70,9 @@ class ValidationSchema extends ValidatorBuilder {
  * 
  */
 	schema(validators: Record<string, Validator[]>): ValidationSchema {
-		const schema = new ValidationSchema()
-		schema.validators = validators
-		return schema
+		const schema = new ValidationSchema();
+		schema.validators = validators;
+		return schema;
 	}
 
 	/**
@@ -96,10 +96,10 @@ class ValidationSchema extends ValidatorBuilder {
 	  */
 	extend(newValidators: Record<string, Validator[]>, override: boolean = false): ValidationSchema {
 		for (const field in newValidators) {
-			if (override || !this.validators[field]) this.validators[field] = newValidators[field]
-			else this.validators[field] = this.validators[field].concat(newValidators[field])
+			if (override || !this.validators[field]) this.validators[field] = newValidators[field];
+			else this.validators[field] = this.validators[field].concat(newValidators[field]);
 		}
-		return this
+		return this;
 	}
 
 	/**
@@ -112,36 +112,36 @@ class ValidationSchema extends ValidatorBuilder {
 	  * 
 	  */
 	pick(keys: string[]): ValidationSchema {
-		const pickedValidators: Record<string, Validator[]> = {}
+		const pickedValidators: Record<string, Validator[]> = {};
 
 		for (const key of keys) {
 			if (this.validators[key]) {
-				pickedValidators[key] = this.validators[key]
+				pickedValidators[key] = this.validators[key];
 			}
 		}
 
-		return this.schema(pickedValidators)
+		return this.schema(pickedValidators);
 	}
 
 	validate(values: Record<string, any>): ValidationResult {
-		const errors: Record<string, string> = {}
-		let success = true
+		const errors: Record<string, string> = {};
+		let success = true;
 
 		for (const field in this.validators) {
-			const validators = this.validators[field]
+			const validators = this.validators[field];
 			for (const validate of validators) {
-				const validationResult = validate(values[field], values)
+				const validationResult = validate(values[field], values);
 				if (validationResult !== true) {
-					success = false
+					success = false;
 					errors[field + 'Err'] = typeof validationResult === 'string'
 						? validationResult
-						: `Invalid value for ${field}`
-					break
+						: `Invalid value for ${field}`;
+					break;
 				}
 			}
 		}
 
-		return { success, errors }
+		return { success, errors };
 	}
 }
 
@@ -153,28 +153,28 @@ const formStateDefaultOptions = {
 	disabled: false,
 	observableAnnotations: {},
 	observableOptions: {}
-}
+};
 
 class FormState<T> {
-	values: FormValues<T>
-	errors: FormErrors<T> = {} as FormErrors<T>
-	validationSchema: ValidationSchema
-	options: Partial<FormStateOptions> = { instaValidate: true, validateAllOnChange: false, inputResetErr: true }
-	initialValues: FormValues<T>
-	disabled: boolean = false
+	values: FormValues<T>;
+	errors: FormErrors<T> = {} as FormErrors<T>;
+	validationSchema: ValidationSchema;
+	options: Partial<FormStateOptions> = { instaValidate: true, validateAllOnChange: false, inputResetErr: true };
+	initialValues: FormValues<T>;
+	disabled: boolean = false;
 
 	constructor(
 		initialValues: FormValues<T>,
 		validationSchema: ValidationSchema,
 		options: FormStateOptions
 	) {
-		this.initialValues = initialValues
-		this.values = initialValues
-		this.validationSchema = validationSchema
-		this.options = { ...formStateDefaultOptions, ...options }
-		if (options.disabled) this.disabled = options.disabled
+		this.initialValues = initialValues;
+		this.values = initialValues;
+		this.validationSchema = validationSchema;
+		this.options = { ...formStateDefaultOptions, ...options };
+		if (options.disabled) this.disabled = options.disabled;
 
-		makeAutoObservable(this, options.observableAnnotations || {}, options.observableOptions || {})
+		makeAutoObservable(this, options.observableAnnotations || {}, options.observableOptions || {});
 	}
 
 	/**
@@ -184,19 +184,19 @@ class FormState<T> {
  *
  */
 	setValue = (field: string, value: T[keyof T]) => {
-		this.values[field as keyof T] = value
+		this.values[field as keyof T] = value;
 
 		// @ts-ignore
-		if (this.options.inputResetErr) this.errors[`${field}Err`] = ''
+		if (this.options.inputResetErr) this.errors[`${field}Err`] = '';
 		if (this.options.instaValidate) {
-			const error = this.validationSchema.validate(this.values)
-			this.disabled = !error.success
-			if (this.options.validateAllOnChange) this.errors = error.errors as FormErrors<T>
-			else this.errors = { ...this.errors, [field + 'Err']: error.errors[field + 'Err'] }
+			const error = this.validationSchema.validate(this.values);
+			this.disabled = !error.success;
+			if (this.options.validateAllOnChange) this.errors = error.errors as FormErrors<T>;
+			else this.errors = { ...this.errors, [field + 'Err']: error.errors[field + 'Err'] };
 		}
 		if (value == '' && this.options.resetErrIfNoValue) {
-			this.errors = { ...this.errors, [field + 'Err']: '' }
-			this.disabled = this.disabled = Object.values(this.errors).some(error => error !== '')
+			this.errors = { ...this.errors, [field + 'Err']: '' };
+			this.disabled = this.disabled = Object.values(this.errors).some(error => error !== '');
 		}
 	};
 
@@ -208,7 +208,7 @@ class FormState<T> {
  */
 	setError(field: keyof T, error: string) {
 		// @ts-ignore
-		this.errors[`${field}Err`] = error || ''
+		this.errors[`${field}Err`] = error || '';
 	}
 
 	/**
@@ -218,8 +218,8 @@ class FormState<T> {
  *
  */
 	reset() {
-		this.values = { ...this.initialValues }
-		this.errors = {} as FormErrors<T>
+		this.values = { ...this.initialValues };
+		this.errors = {} as FormErrors<T>;
 	}
 
 	/**
@@ -234,21 +234,21 @@ class FormState<T> {
  * 
  */
 	validate(): boolean {
-		const result: ValidationResult = this.validationSchema.validate(this.values)
-		if (!result.success) this.errors = result.errors as FormErrors<T>
-		else this.errors = {} as FormErrors<T>
+		const result: ValidationResult = this.validationSchema.validate(this.values);
+		if (!result.success) this.errors = result.errors as FormErrors<T>;
+		else this.errors = {} as FormErrors<T>;
 
-		this.disabled = !result.success
+		this.disabled = !result.success;
 
-		return result.success
+		return result.success;
 	}
 }
 
 // ========================== USE MOBX UPDATER ==============================
 
 class MobxUpdater {
-	constructor(annotations: AnnotationsMap<{ [key: string]: any }, never> = {}) {
-		makeAutoObservable(this, annotations, { autoBind: true })
+	constructor(annotations: AnnotationsMap<{ [key: string]: any; }, never> = {}) {
+		makeAutoObservable(this, annotations, { autoBind: true });
 	}
 
 	/** 
@@ -263,8 +263,8 @@ class MobxUpdater {
 			key: K,
 			updater: UpdaterT<T, K>
 		) => {
-			this.updateState(arrayOrObject, id, key, updater)
-		}
+			this.updateState(arrayOrObject, id, key, updater);
+		};
 	}
 
 	/** 
@@ -279,13 +279,14 @@ class MobxUpdater {
 		arrayOrObject: T[] | Record<string, T>,
 		id: string | number,
 		key: K,
-		updater: UpdaterT<T, K>
+		updater: UpdaterT<T, K>,
+		idKey?: string
 	) {
 		const item = Array.isArray(arrayOrObject)
-			? arrayOrObject.find((item) => item.id === id)
-			: arrayOrObject[id]
+			? arrayOrObject.find((item) => (item as any)?.[idKey || 'id'] === id)
+			: arrayOrObject[id];
 
-		if (item) this.deepUpdate(item, key, updater)
+		if (item) this.deepUpdate(item, key, updater);
 	}
 
 	/** 
@@ -301,32 +302,32 @@ class MobxUpdater {
 		key: K,
 		updater: UpdaterT<T, K>
 	) {
-		const keys = key.split(".") as string[]
-		const lastKey = keys.pop() as string
+		const keys = key.split(".") as string[];
+		const lastKey = keys.pop() as string;
 
 		const target = keys.reduce((acc, k) => {
 			if (k.includes("[")) {
-				const [arrayKey, index] = k.split(/\[|\]/).filter(Boolean)
-				if (!acc[arrayKey]) acc[arrayKey] = []
-				if (!acc[arrayKey][Number(index)]) acc[arrayKey][Number(index)] = {}
-				return acc[arrayKey][Number(index)]
+				const [arrayKey, index] = k.split(/\[|\]/).filter(Boolean);
+				if (!acc[arrayKey]) acc[arrayKey] = [];
+				if (!acc[arrayKey][Number(index)]) acc[arrayKey][Number(index)] = {};
+				return acc[arrayKey][Number(index)];
 			}
-			if (!acc[k]) acc[k] = {}
-			return acc[k]
-		}, obj as any)
+			if (!acc[k]) acc[k] = {};
+			return acc[k];
+		}, obj as any);
 
 		if (target && lastKey) {
 			if (typeof updater === "function") {
-				const prevValue = target[lastKey as keyof typeof target]
-				target[lastKey as keyof typeof target] = (updater as (prevValue: any) => any)(prevValue)
-			} else target[lastKey as keyof typeof target] = updater
+				const prevValue = target[lastKey as keyof typeof target];
+				target[lastKey as keyof typeof target] = (updater as (prevValue: any) => any)(prevValue);
+			} else target[lastKey as keyof typeof target] = updater;
 		}
 	}
 }
 
 // ========================== MOBX SAI FETCH ==============================
 
-const fetchCache = new Map<string, MobxSaiInstance<any>>()
+const fetchCache = new Map<string, MobxSaiInstance<any>>();
 
 const defaultOptions: MobxSaiFetchOptions = {
 	id: "default",
@@ -360,7 +361,7 @@ const defaultOptions: MobxSaiFetchOptions = {
 		isSetPrevArr: false,
 		setArrCallback: null
 	},
-}
+};
 
 class MobxSaiFetch<T> {
 	constructor(options?: Partial<MobxSaiFetchOptions>) {
@@ -383,12 +384,12 @@ class MobxSaiFetch<T> {
 				...defaultOptions.fetchAddTo,
 				...options!.fetchAddTo
 			}
-		}
-		makeAutoObservable(this, {}, { autoBind: true })
-		this.setupScrollTracking()
+		};
+		makeAutoObservable(this, {}, { autoBind: true });
+		this.setupScrollTracking();
 
 		if (!this.options.needPending) {
-			this.status = "fulfilled"
+			this.status = "fulfilled";
 		}
 	}
 
@@ -400,72 +401,72 @@ class MobxSaiFetch<T> {
 	data: T | null = null;
 	error: Error | null = null;
 
-	addedToEndCount = 0
-	addedToStartCount = 0
-	fetchedCount = 0
+	addedToEndCount = 0;
+	addedToStartCount = 0;
+	fetchedCount = 0;
 
-	scrollProgress = 0
-	gettedToTop = mobxState(0)('gettedToTop')
+	scrollProgress = 0;
+	gettedToTop = mobxState(0)('gettedToTop');
 	botStatus: "pending" | "fulfilled" | "rejected" | "" = "";
 	topStatus: "pending" | "fulfilled" | "rejected" | "" = "";
-	scrollCachedData = mobxState([])('scrollCachedData')
+	scrollCachedData = mobxState([])('scrollCachedData');
 
-	isBotPending = false
-	isBotRejected = false
-	isBotFulfulled = false
+	isBotPending = false;
+	isBotRejected = false;
+	isBotFulfulled = false;
 
-	isTopPending = false
-	isTopRejected = false
-	isTopFulfulled = false
+	isTopPending = false;
+	isTopRejected = false;
+	isTopFulfulled = false;
 
-	topError: Error | null = null
-	botError: Error | null = null
+	topError: Error | null = null;
+	botError: Error | null = null;
 
-	isHaveMoreBot = mobxState(true)('isHaveMoreBot')
-	isHaveMoreTop = mobxState(true)('isHaveMoreTop')
+	isHaveMoreBot = mobxState(true)('isHaveMoreBot');
+	isHaveMoreTop = mobxState(true)('isHaveMoreTop');
 
-	private oldOptions: MobxSaiFetchOptions | null = null
+	private oldOptions: MobxSaiFetchOptions | null = null;
 
-	promiseOrFunction: (() => Promise<T>) | null = null
-	setPromiseOrFunction = (promise: (() => Promise<T>) | null) => this.promiseOrFunction = promise
+	promiseOrFunction: (() => Promise<T>) | null = null;
+	setPromiseOrFunction = (promise: (() => Promise<T>) | null) => this.promiseOrFunction = promise;
 
 	options: MobxSaiFetchOptions = defaultOptions;
 
 	setupScrollTracking() {
-		if (!this.options.dataScope?.class && !this.options.dataScope?.scrollRef) return
+		if (!this.options.dataScope?.class && !this.options.dataScope?.scrollRef) return;
 
 		if (this.options.dataScope?.class && typeof document !== 'undefined') {
-			const element = document.querySelector(`.${this.options.dataScope.class}`)
+			const element = document.querySelector(`.${this.options.dataScope.class}`);
 			if (!element) {
-				console.warn("Scroll tracking element not found.")
-				return
+				console.warn("Scroll tracking element not found.");
+				return;
 			}
 
 			const updateScrollProgress = () => {
-				const { scrollTop, scrollHeight, clientHeight } = element
-				this.handleScrollUpdate(scrollTop, scrollHeight, clientHeight)
-			}
+				const { scrollTop, scrollHeight, clientHeight } = element;
+				this.handleScrollUpdate(scrollTop, scrollHeight, clientHeight);
+			};
 
-			element.addEventListener("scroll", updateScrollProgress)
+			element.addEventListener("scroll", updateScrollProgress);
 		}
 
 		// React Native
 		else if (this.options.dataScope?.scrollRef) {
 			const handleScroll = (event: any) => {
-				const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
-				const scrollTop = contentOffset.y
-				const scrollHeight = contentSize.height
-				const clientHeight = layoutMeasurement.height
+				const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+				const scrollTop = contentOffset.y;
+				const scrollHeight = contentSize.height;
+				const clientHeight = layoutMeasurement.height;
 
-				this.handleScrollUpdate(scrollTop, scrollHeight, clientHeight)
-			}
+				this.handleScrollUpdate(scrollTop, scrollHeight, clientHeight);
+			};
 
-			this.options.dataScope.onScroll = handleScroll
+			this.options.dataScope.onScroll = handleScroll;
 		}
 	}
 
 	handleScrollUpdate(scrollTop: number, scrollHeight: number, clientHeight: number) {
-		const { topPercentage, botPercentage, startFrom } = this.options.dataScope!
+		const { topPercentage, botPercentage, startFrom } = this.options.dataScope!;
 		const {
 			gettedToTop: { gettedToTop, setGettedToTop },
 			isHaveMoreBot: { isHaveMoreBot, setIsHaveMoreBot },
@@ -477,9 +478,9 @@ class MobxSaiFetch<T> {
 			} },
 			isTopPending,
 			isBotPending,
-		} = this
+		} = this;
 
-		this.scrollProgress = Math.round((scrollTop / (scrollHeight - clientHeight)) * 100)
+		this.scrollProgress = Math.round((scrollTop / (scrollHeight - clientHeight)) * 100);
 
 		// === FETCH TOP ===
 		if (
@@ -488,22 +489,22 @@ class MobxSaiFetch<T> {
 			!isTopPending &&
 			isHaveMoreTop
 		) {
-			if (startFrom == 'top' && gettedToTop >= -(howMuchGettedToTop! - 1)) return
+			if (startFrom == 'top' && gettedToTop >= -(howMuchGettedToTop! - 1)) return;
 
-			console.log("FETCH TOP")
+			console.log("FETCH TOP");
 			setGettedToTop(p => {
-				if ((p + 1) >= howMuchGettedToTop! + 1) setIsHaveMoreBot(true)
-				return p + 1
-			})
-			this.setTopPending()
+				if ((p + 1) >= howMuchGettedToTop! + 1) setIsHaveMoreBot(true);
+				return p + 1;
+			});
+			this.setTopPending();
 
 			// @ts-ignore
 			if (this?.data?.[this?.options?.fetchAddTo?.path]?.[0]?.id) {
-				console.warn(`We can't find your relative Id`)
-				return
+				console.warn(`We can't find your relative Id`);
+				return;
 			}
 
-			this.oldOptions = this.options
+			this.oldOptions = this.options;
 			this.options = {
 				...this.options,
 				isSetData: true,
@@ -511,17 +512,17 @@ class MobxSaiFetch<T> {
 					...this.options.fetchAddTo,
 					addTo: 'start'
 				}
-			}
+			};
 
 			this.options.dataScope.setParams((prev: any) => {
-				const newParams = prev
+				const newParams = prev;
 				// @ts-ignore
-				if (relativeParamsKey) newParams[relativeParamsKey] = this.data[this.options.fetchAddTo.path][0].id
-				if (upOrDownParamsKey) newParams[upOrDownParamsKey] = true
-				return newParams
-			})
+				if (relativeParamsKey) newParams[relativeParamsKey] = this.data[this.options.fetchAddTo.path][0].id;
+				if (upOrDownParamsKey) newParams[upOrDownParamsKey] = true;
+				return newParams;
+			});
 
-			if (this.promiseOrFunction) this.fetch(this.promiseOrFunction, 'fromScroll', 'top')
+			if (this.promiseOrFunction) this.fetch(this.promiseOrFunction, 'fromScroll', 'top');
 		}
 
 		// === FETCH BOT ===
@@ -536,22 +537,22 @@ class MobxSaiFetch<T> {
 			this.options.dataScope.setParams &&
 			isHaveMoreBot
 		) {
-			if (startFrom == 'bot' && gettedToTop <= howMuchGettedToTop!) return
+			if (startFrom == 'bot' && gettedToTop <= howMuchGettedToTop!) return;
 
-			console.log("FETCH BOT")
+			console.log("FETCH BOT");
 			setGettedToTop(p => {
-				if ((p - 1) <= howMuchGettedToTop! - 1) setIsHaveMoreTop(true)
-				return p - 1
-			})
-			this.setBotPending()
+				if ((p - 1) <= howMuchGettedToTop! - 1) setIsHaveMoreTop(true);
+				return p - 1;
+			});
+			this.setBotPending();
 
 			// @ts-ignore
 			if (!this.data[this.options.fetchAddTo.path][this.data[this.options.fetchAddTo.path]?.length - 1].id) {
-				console.warn(`We can't find your relative Id`)
-				return
+				console.warn(`We can't find your relative Id`);
+				return;
 			}
 
-			this.oldOptions = this.options
+			this.oldOptions = this.options;
 			this.options = {
 				...this.options,
 				isSetData: true,
@@ -559,17 +560,17 @@ class MobxSaiFetch<T> {
 					...this.options.fetchAddTo,
 					addTo: 'end'
 				}
-			}
+			};
 
 			this.options.dataScope.setParams((prev: any) => {
-				const newParams = prev
+				const newParams = prev;
 				// @ts-ignore
-				if (relativeParamsKey) newParams[relativeParamsKey] = this.data[this.options.fetchAddTo.path][this.data[this.options.fetchAddTo.path]?.length - 1].id
-				if (upOrDownParamsKey) newParams[upOrDownParamsKey] = false
-				return newParams
-			})
+				if (relativeParamsKey) newParams[relativeParamsKey] = this.data[this.options.fetchAddTo.path][this.data[this.options.fetchAddTo.path]?.length - 1].id;
+				if (upOrDownParamsKey) newParams[upOrDownParamsKey] = false;
+				return newParams;
+			});
 
-			if (this.promiseOrFunction) this.fetch(this.promiseOrFunction, 'fromScroll', 'bot')
+			if (this.promiseOrFunction) this.fetch(this.promiseOrFunction, 'fromScroll', 'bot');
 		}
 	}
 
@@ -578,68 +579,68 @@ class MobxSaiFetch<T> {
 			gettedToTop: { gettedToTop },
 			isHaveMoreBot: { setIsHaveMoreBot, isHaveMoreBot },
 			isHaveMoreTop: { setIsHaveMoreTop, isHaveMoreTop }
-		} = this
+		} = this;
 		const {
 			dataScope: { startFrom, isHaveMoreResKey, howMuchGettedToTop },
 			fetchIfPending,
 			fetchIfHaveData,
 			fetchAddTo,
 			needPending
-		} = this.options
+		} = this.options;
 
 		if (!fetchIfPending && this.isPending) {
-			console.warn("Fetch is already pending and fetchIfPending is false.")
-			return this
+			console.warn("Fetch is already pending and fetchIfPending is false.");
+			return this;
 		}
 
 		if (!fetchIfHaveData && this.data && !fromWhere) {
-			console.warn("Data already exists and fetchIfHaveData is false.")
-			return this
+			console.warn("Data already exists and fetchIfHaveData is false.");
+			return this;
 		}
 
 		if (fetchWhat === 'bot' && !isHaveMoreBot) {
-			console.warn("Skipping BOT fetch because isHaveMoreBot is false")
-			return this
+			console.warn("Skipping BOT fetch because isHaveMoreBot is false");
+			return this;
 		}
 
 		if (fetchWhat === 'top' && !isHaveMoreTop) {
-			console.warn("Skipping TOP fetch because isHaveMoreTop is false")
-			return this
+			console.warn("Skipping TOP fetch because isHaveMoreTop is false");
+			return this;
 		}
 
 		if (fromWhere == null && fetchWhat == null) {
 			if (needPending) {
-				this.setPending()
-				this.status = "pending"
+				this.setPending();
+				this.status = "pending";
 			}
-			this.error = null
+			this.error = null;
 		}
 
 		const fetchPromise =
 			promiseOrFunction instanceof Promise
 				? () => promiseOrFunction
-				: promiseOrFunction
+				: promiseOrFunction;
 
 		fetchPromise()
 			.then((result) => {
 				if (fromWhere == null && fetchWhat == null) {
-					this.status = "fulfilled"
-					this.setFulfilled()
+					this.status = "fulfilled";
+					this.setFulfilled();
 					if (isHaveMoreResKey && typeof result === 'object' && result !== null && isHaveMoreResKey in result) {
-						setIsHaveMoreBot(result[isHaveMoreResKey as keyof typeof result] as boolean)
+						setIsHaveMoreBot(result[isHaveMoreResKey as keyof typeof result] as boolean);
 					}
 				} else {
 					if (fetchWhat == 'bot') {
-						this.setBotFulfilled()
+						this.setBotFulfilled();
 						if (isHaveMoreResKey && typeof result === 'object' && result !== null && isHaveMoreResKey in result) {
-							setIsHaveMoreBot(result[isHaveMoreResKey as keyof typeof result] as boolean)
-						} else console.warn(`BOT FETCH: Can't find isHaveMore from passed isHaveMoreResKey 'result[isHaveMoreResKey]'`)
+							setIsHaveMoreBot(result[isHaveMoreResKey as keyof typeof result] as boolean);
+						} else console.warn(`BOT FETCH: Can't find isHaveMore from passed isHaveMoreResKey 'result[isHaveMoreResKey]'`);
 					}
 					if (fetchWhat == 'top') {
-						this.setTopFulfilled()
+						this.setTopFulfilled();
 						if (isHaveMoreResKey && typeof result === 'object' && result !== null && isHaveMoreResKey in result) {
-							setIsHaveMoreTop(result[isHaveMoreResKey as keyof typeof result] as boolean)
-						} else console.warn(`TOP FETCH: Can't find isHaveMore from passed isHaveMoreResKey 'result[isHaveMoreResKey]'`)
+							setIsHaveMoreTop(result[isHaveMoreResKey as keyof typeof result] as boolean);
+						} else console.warn(`TOP FETCH: Can't find isHaveMore from passed isHaveMoreResKey 'result[isHaveMoreResKey]'`);
 					}
 				}
 
@@ -649,327 +650,327 @@ class MobxSaiFetch<T> {
 
 						// SCROLL CACHE SYSTEM 
 						if (gettedToTop <= -howMuchGettedToTop! && startFrom == 'top') {
-							setIsHaveMoreTop(true)
+							setIsHaveMoreTop(true);
 							if (fetchWhat == 'bot') {
 								// @ts-ignore
-								this.data[fetchAddTo.path].splice(0, this.options.cacheSystem.limit)
+								this.data[fetchAddTo.path].splice(0, this.options.cacheSystem.limit);
 							} else {
 								// @ts-ignore
-								this.data[fetchAddTo.path] = [...this.data[fetchAddTo.path].slice(0, -this.options.cacheSystem.limit)]
+								this.data[fetchAddTo.path] = [...this.data[fetchAddTo.path].slice(0, -this.options.cacheSystem.limit)];
 							}
 						}
 						if (fetchWhat == 'bot' && startFrom == 'top') {
 							if (gettedToTop === -howMuchGettedToTop!) {
 								// @ts-ignore
-								const cachedList = this.data[fetchAddTo.path].slice(0, this.options.cacheSystem.limit)
-								this.scrollCachedData.setScrollCachedData(cachedList)
+								const cachedList = this.data[fetchAddTo.path].slice(0, this.options.cacheSystem.limit);
+								this.scrollCachedData.setScrollCachedData(cachedList);
 							}
 						}
 						if (fetchWhat == 'top' && startFrom == 'bot') {
 							if (gettedToTop === howMuchGettedToTop) {
 								// @ts-ignore
-								const cachedList = this.data[fetchAddTo.path].slice(-this.options.cacheSystem.limit)
-								this.scrollCachedData.setScrollCachedData(cachedList)
+								const cachedList = this.data[fetchAddTo.path].slice(-this.options.cacheSystem.limit);
+								this.scrollCachedData.setScrollCachedData(cachedList);
 							}
 						}
 
-						const targetArray = this.getPathValue(this.data, fetchAddTo.path)
+						const targetArray = this.getPathValue(this.data, fetchAddTo.path);
 
 						switch (fetchAddTo.addTo) {
 							case "start":
-								this.setAddedToStartCount('+')
+								this.setAddedToStartCount('+');
 								if (fetchAddTo.setArrCallback) {
 									fetchAddTo.setArrCallback(prev => {
 										// @ts-ignore
-										return fetchAddTo?.isSetReversedArr ? [...result[fetchAddTo.path], ...prev].reverse() : [...result[fetchAddTo.path].reverse(), ...prev]
-									})
+										return fetchAddTo?.isSetReversedArr ? [...result[fetchAddTo.path], ...prev].reverse() : [...result[fetchAddTo.path].reverse(), ...prev];
+									});
 								}
-								if (!this.options?.isSetData) return
+								if (!this.options?.isSetData) return;
 								// @ts-ignore
-								this.setPathValue(this.data, fetchAddTo.path, [...result[fetchAddTo.path], ...targetArray])
-								break
+								this.setPathValue(this.data, fetchAddTo.path, [...result[fetchAddTo.path], ...targetArray]);
+								break;
 							case "end":
-								this.setAddedToEndCount('+')
+								this.setAddedToEndCount('+');
 								if (fetchAddTo.setArrCallback) {
 									fetchAddTo.setArrCallback(prev => {
 										// @ts-ignore
-										return fetchAddTo?.isSetReversedArr ? [...prev, ...result[fetchAddTo.path]].reverse() : [...prev, ...result[fetchAddTo.path]]
-									})
+										return fetchAddTo?.isSetReversedArr ? [...prev, ...result[fetchAddTo.path]].reverse() : [...prev, ...result[fetchAddTo.path]];
+									});
 								}
-								if (!this.options?.isSetData) return
+								if (!this.options?.isSetData) return;
 								// @ts-ignore
-								this.setPathValue(this.data, fetchAddTo.path, [...targetArray, ...result[fetchAddTo.path]])
-								break
+								this.setPathValue(this.data, fetchAddTo.path, [...targetArray, ...result[fetchAddTo.path]]);
+								break;
 							case "reset":
 							default:
 								if (fetchAddTo.setArrCallback) {
 									if (fetchAddTo.path) {
 										// @ts-ignore
-										fetchAddTo.setArrCallback(fetchAddTo?.isSetReversedArr ? [...result[fetchAddTo.path]]?.reverse() : result[fetchAddTo.path])
+										fetchAddTo.setArrCallback(fetchAddTo?.isSetReversedArr ? [...result[fetchAddTo.path]]?.reverse() : result[fetchAddTo.path]);
 									} else {
-										fetchAddTo.setArrCallback(result as [])
+										fetchAddTo.setArrCallback(result as []);
 									}
 								}
-								if (!this.options?.isSetData) return
-								this.setPathValue(this.data, fetchAddTo.path, result)
+								if (!this.options?.isSetData) return;
+								this.setPathValue(this.data, fetchAddTo.path, result);
 						}
 					} else {
-						this.setFetchedCount('+')
+						this.setFetchedCount('+');
 						if (fetchAddTo.setArrCallback) {
 							if (fetchAddTo?.path) {
 								fetchAddTo.setArrCallback(prev => {
 									if (fetchAddTo?.isSetPrevArr) {
 										if (fetchAddTo?.isSetReversedArr) {
 											// @ts-ignore
-											return fetchAddTo?.addTo == 'start' ? [...prev, ...[...result[fetchAddTo.path]]?.reverse()] : [...[...result[fetchAddTo.path]]?.reverse(), ...prev]
+											return fetchAddTo?.addTo == 'start' ? [...prev, ...[...result[fetchAddTo.path]]?.reverse()] : [...[...result[fetchAddTo.path]]?.reverse(), ...prev];
 										}
 										// @ts-ignore
-										return fetchAddTo?.addTo == 'start' ? [...prev, ...result[fetchAddTo.path]] : [...result[fetchAddTo.path], ...prev]
+										return fetchAddTo?.addTo == 'start' ? [...prev, ...result[fetchAddTo.path]] : [...result[fetchAddTo.path], ...prev];
 									}
 									if (fetchAddTo?.isSetReversedArr) {
 										// @ts-ignore
-										return result[fetchAddTo.path]?.reverse()
+										return result[fetchAddTo.path]?.reverse();
 									}
 									// @ts-ignore
-									return result[fetchAddTo.path]
-								})
+									return result[fetchAddTo.path];
+								});
 							} else {
-								fetchAddTo.setArrCallback(result as [])
+								fetchAddTo.setArrCallback(result as []);
 							}
 						}
-						if (!this.options?.isSetData) return
-						this.data = result
+						if (!this.options?.isSetData) return;
+						this.data = result;
 					}
 				} else {
-					this.setFetchedCount('+')
+					this.setFetchedCount('+');
 					if (fetchAddTo.setArrCallback) {
 						if (fetchAddTo?.path) {
 							fetchAddTo.setArrCallback(prev => {
 								if (fetchAddTo?.isSetPrevArr) {
 									// @ts-ignore
-									const arrCount = [...prev, ...[...result[fetchAddTo.path]]].length
+									const arrCount = [...prev, ...[...result[fetchAddTo.path]]].length;
 									if (fetchAddTo?.isSetReversedArr) {
 										// @ts-ignore
-										const newList = fetchAddTo?.addTo == 'start' ? [...prev, ...[...result[fetchAddTo.path]]?.reverse()] : [...[...result[fetchAddTo.path]]?.reverse(), ...prev]
+										const newList = fetchAddTo?.addTo == 'start' ? [...prev, ...[...result[fetchAddTo.path]]?.reverse()] : [...[...result[fetchAddTo.path]]?.reverse(), ...prev];
 										if (this.options.cacheSystem.limit) {
 											if (arrCount >= this.options.cacheSystem.limit && this.options.cacheSystem?.setCache) {
 												// @ts-ignore
-												this.options.cacheSystem.setCache(newList)
+												this.options.cacheSystem.setCache(newList);
 											}
 										}
-										return newList
+										return newList;
 									}
 									// @ts-ignore
-									const newList = fetchAddTo?.addTo == 'start' ? [...prev, ...result[fetchAddTo.path]] : [...result[fetchAddTo.path], ...prev]
+									const newList = fetchAddTo?.addTo == 'start' ? [...prev, ...result[fetchAddTo.path]] : [...result[fetchAddTo.path], ...prev];
 									if (this.options.cacheSystem.limit) {
 										if (arrCount >= this.options.cacheSystem.limit && this.options.cacheSystem?.setCache) {
 											// @ts-ignore
-											this.options.cacheSystem.setCache(newList)
+											this.options.cacheSystem.setCache(newList);
 										}
 									}
-									return newList
+									return newList;
 								}
 								// @ts-ignore
-								const newList = result[fetchAddTo.path]
-								const arrCount = newList?.length
+								const newList = result[fetchAddTo.path];
+								const arrCount = newList?.length;
 								if (this.options.cacheSystem.limit) {
 									if (arrCount >= this.options.cacheSystem.limit && this.options.cacheSystem?.setCache) {
 										// @ts-ignore
-										this.options.cacheSystem.setCache(fetchAddTo?.isSetReversedArr ? newList?.reverse() : newList)
+										this.options.cacheSystem.setCache(fetchAddTo?.isSetReversedArr ? newList?.reverse() : newList);
 									}
 								}
 								if (fetchAddTo?.isSetReversedArr) {
-									return newList?.reverse()
+									return newList?.reverse();
 								}
-								return newList
-							})
+								return newList;
+							});
 						} else {
-							fetchAddTo.setArrCallback(result as [])
+							fetchAddTo.setArrCallback(result as []);
 						}
 					}
-					if (!this.options?.isSetData) return
-					this.data = result
+					if (!this.options?.isSetData) return;
+					this.data = result;
 				}
 
 				if (this.options.page && this.options.pageSetterName && !this.options.isFetchUp) {
-					(this.options.page as any)[this.options.pageSetterName]((p: number) => p + 1)
+					(this.options.page as any)[this.options.pageSetterName]((p: number) => p + 1);
 				}
 			})
 			.catch((err) => {
 				if (fromWhere == null && fetchWhat == null) {
-					this.status = "rejected"
-					this.setRejected()
-					this.error = err
+					this.status = "rejected";
+					this.setRejected();
+					this.error = err;
 				} else {
-					if (fetchWhat == 'bot') this.setBotRejected(err)
-					if (fetchWhat == 'top') this.setTopRejected(err)
+					if (fetchWhat == 'bot') this.setBotRejected(err);
+					if (fetchWhat == 'top') this.setTopRejected(err);
 				}
 			})
 			.finally(() => {
 				if (this.oldOptions) {
-					this.options = this.oldOptions
+					this.options = this.oldOptions;
 				}
-			})
+			});
 
-		return this
+		return this;
 	};
 
 	isFetched = () => {
-		return !!this.data
-	}
+		return !!this.data;
+	};
 
 	private setAddedToEndCount = (which: '+' | '-' | number) => {
-		this.setFetchedCount('+')
-		if (typeof which == 'number') this.addedToEndCount = which
-		if (which == '+') this.addedToEndCount = this.addedToEndCount + 1
-		else this.addedToEndCount = this.addedToEndCount - 1
-	}
+		this.setFetchedCount('+');
+		if (typeof which == 'number') this.addedToEndCount = which;
+		if (which == '+') this.addedToEndCount = this.addedToEndCount + 1;
+		else this.addedToEndCount = this.addedToEndCount - 1;
+	};
 
 	private setAddedToStartCount = (which: '+' | '-' | number) => {
-		this.setFetchedCount('+')
-		if (typeof which == 'number') this.addedToStartCount = which
-		if (which == '+') this.addedToStartCount = this.addedToStartCount + 1
-		else this.addedToStartCount = this.addedToStartCount - 1
-	}
+		this.setFetchedCount('+');
+		if (typeof which == 'number') this.addedToStartCount = which;
+		if (which == '+') this.addedToStartCount = this.addedToStartCount + 1;
+		else this.addedToStartCount = this.addedToStartCount - 1;
+	};
 
 	private setFetchedCount = (which: '+' | '-' | number) => {
-		if (typeof which == 'number') this.fetchedCount = which
-		if (which == '+') this.fetchedCount = this.fetchedCount + 1
-		else this.fetchedCount = this.fetchedCount - 1
-	}
+		if (typeof which == 'number') this.fetchedCount = which;
+		if (which == '+') this.fetchedCount = this.fetchedCount + 1;
+		else this.fetchedCount = this.fetchedCount - 1;
+	};
 
 	private getPathValue = (obj: any, path: string): any => {
-		return path.split(".").reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : null), obj)
+		return path.split(".").reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : null), obj);
 	};
 
 	private setPathValue = (obj: any, path: string, value: any) => {
-		const keys = path.split(".")
-		let temp = obj
+		const keys = path.split(".");
+		let temp = obj;
 		for (let i = 0; i < keys.length - 1; i++) {
-			if (!temp[keys[i]]) temp[keys[i]] = {}
-			temp = temp[keys[i]]
+			if (!temp[keys[i]]) temp[keys[i]] = {};
+			temp = temp[keys[i]];
 		}
-		temp[keys[keys.length - 1]] = value
+		temp[keys[keys.length - 1]] = value;
 	};
 
 	private setFulfilled = () => {
-		this.isFulfilled = true
-		this.isPending = false
-		this.isRejected = false
+		this.isFulfilled = true;
+		this.isPending = false;
+		this.isRejected = false;
 	};
 
 	private setRejected = () => {
-		this.isRejected = true
-		this.isFulfilled = false
-		this.isPending = false
+		this.isRejected = true;
+		this.isFulfilled = false;
+		this.isPending = false;
 	};
 
 	private setPending = () => {
-		this.isFulfilled = false
-		this.isPending = true
-		this.isRejected = false
+		this.isFulfilled = false;
+		this.isPending = true;
+		this.isRejected = false;
 	};
 
 	private setTopPending = () => {
-		this.topStatus = 'pending'
-		this.isTopPending = true
-		this.isTopRejected = false
-		this.isTopFulfulled = false
-	}
+		this.topStatus = 'pending';
+		this.isTopPending = true;
+		this.isTopRejected = false;
+		this.isTopFulfulled = false;
+	};
 
 	private setTopRejected = (err: Error) => {
-		this.topError = err
-		this.topStatus = 'rejected'
-		this.isTopPending = false
-		this.isTopRejected = true
-		this.isTopFulfulled = false
-	}
+		this.topError = err;
+		this.topStatus = 'rejected';
+		this.isTopPending = false;
+		this.isTopRejected = true;
+		this.isTopFulfulled = false;
+	};
 
 	private setTopFulfilled = () => {
-		this.topStatus = 'fulfilled'
-		this.isTopPending = false
-		this.isTopRejected = false
-		this.isTopFulfulled = true
-	}
+		this.topStatus = 'fulfilled';
+		this.isTopPending = false;
+		this.isTopRejected = false;
+		this.isTopFulfulled = true;
+	};
 
 	private setBotPending = () => {
-		this.botStatus = 'pending'
-		this.isBotPending = true
-		this.isBotRejected = false
-		this.isBotFulfulled = false
-	}
+		this.botStatus = 'pending';
+		this.isBotPending = true;
+		this.isBotRejected = false;
+		this.isBotFulfulled = false;
+	};
 
 	private setBotRejected = (err: Error) => {
-		this.botError = err
-		this.botStatus = 'rejected'
-		this.isBotPending = false
-		this.isBotRejected = true
-		this.isBotFulfulled = false
-	}
+		this.botError = err;
+		this.botStatus = 'rejected';
+		this.isBotPending = false;
+		this.isBotRejected = true;
+		this.isBotFulfulled = false;
+	};
 
 	private setBotFulfilled = () => {
-		this.botStatus = 'fulfilled'
-		this.isBotPending = false
-		this.isBotRejected = false
-		this.isBotFulfulled = true
-	}
+		this.botStatus = 'fulfilled';
+		this.isBotPending = false;
+		this.isBotRejected = false;
+		this.isBotFulfulled = true;
+	};
 
 	setScrollRef(scrollRef: any) {
 		if (this.options.dataScope) {
-			this.options.dataScope.scrollRef = scrollRef
+			this.options.dataScope.scrollRef = scrollRef;
 
 			const handleScroll = (event: any) => {
-				const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent
-				const scrollTop = contentOffset.y
-				const scrollHeight = contentSize.height
-				const clientHeight = layoutMeasurement.height
+				const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+				const scrollTop = contentOffset.y;
+				const scrollHeight = contentSize.height;
+				const clientHeight = layoutMeasurement.height;
 
-				this.handleScrollUpdate(scrollTop, scrollHeight, clientHeight)
-			}
+				this.handleScrollUpdate(scrollTop, scrollHeight, clientHeight);
+			};
 
-			this.options.dataScope.onScroll = handleScroll
+			this.options.dataScope.onScroll = handleScroll;
 		}
 
-		return this
+		return this;
 	}
 
 	reset = (): this => {
-		this.isPending = false
-		this.isFulfilled = false
-		this.isRejected = false
-		this.status = "pending"
-		this.data = null
-		this.error = null
+		this.isPending = false;
+		this.isFulfilled = false;
+		this.isRejected = false;
+		this.status = "pending";
+		this.data = null;
+		this.error = null;
 
-		this.addedToEndCount = 0
-		this.addedToStartCount = 0
-		this.fetchedCount = 0
+		this.addedToEndCount = 0;
+		this.addedToStartCount = 0;
+		this.fetchedCount = 0;
 
-		this.scrollProgress = 0
-		this.gettedToTop.setGettedToTop(0)
-		this.scrollCachedData.setScrollCachedData([])
+		this.scrollProgress = 0;
+		this.gettedToTop.setGettedToTop(0);
+		this.scrollCachedData.setScrollCachedData([]);
 
-		this.botStatus = ""
-		this.topStatus = ""
+		this.botStatus = "";
+		this.topStatus = "";
 
-		this.isBotPending = false
-		this.isBotRejected = false
-		this.isBotFulfulled = false
+		this.isBotPending = false;
+		this.isBotRejected = false;
+		this.isBotFulfulled = false;
 
-		this.isTopPending = false
-		this.isTopRejected = false
-		this.isTopFulfulled = false
+		this.isTopPending = false;
+		this.isTopRejected = false;
+		this.isTopFulfulled = false;
 
-		this.topError = null
-		this.botError = null
+		this.topError = null;
+		this.botError = null;
 
-		this.isHaveMoreBot.setIsHaveMoreBot(true)
-		this.isHaveMoreTop.setIsHaveMoreTop(true)
+		this.isHaveMoreBot.setIsHaveMoreBot(true);
+		this.isHaveMoreTop.setIsHaveMoreTop(true);
 
-		this.oldOptions = null
+		this.oldOptions = null;
 
-		return this
-	}
+		return this;
+	};
 }
 
 // ========================= MOBX DEBOUNCER ==============================
@@ -1043,30 +1044,30 @@ export class MobxDebouncer {
 		delay: number = 500,
 		groupKey: string = 'default'
 	): void => {
-		const actionKey = `${groupKey}_${key}`
+		const actionKey = `${groupKey}_${key}`;
 
-		this.actionRegistry.set(actionKey, new Set([action]))
+		this.actionRegistry.set(actionKey, new Set([action]));
 
-		const currentState = this.debouncedActions.get(actionKey)
+		const currentState = this.debouncedActions.get(actionKey);
 		if (currentState?.timerId) {
-			clearTimeout(currentState.timerId)
+			clearTimeout(currentState.timerId);
 		}
 
 		const timerId = setTimeout(() => {
 			runInAction(() => {
-				const actions = this.actionRegistry.get(actionKey)
+				const actions = this.actionRegistry.get(actionKey);
 				if (actions) {
-					actions.forEach(act => act())
-					this.actionRegistry.delete(actionKey)
+					actions.forEach(act => act());
+					this.actionRegistry.delete(actionKey);
 				}
-				this.debouncedActions.delete(actionKey)
-			})
-		}, delay)
+				this.debouncedActions.delete(actionKey);
+			});
+		}, delay);
 
 		this.debouncedActions.set(actionKey, {
 			timerId,
 			pendingActions: Array.from(this.actionRegistry.get(actionKey)!)
-		})
+		});
 	};
 
 	/**
@@ -1076,23 +1077,23 @@ export class MobxDebouncer {
 	 * @param groupKey - Ключ группировки
 	 */
 	flushDebouncedActions = (key: string | number, groupKey: string = 'default'): void => {
-		const actionKey = `${groupKey}_${key}`
+		const actionKey = `${groupKey}_${key}`;
 
-		const currentState = this.debouncedActions.get(actionKey)
+		const currentState = this.debouncedActions.get(actionKey);
 		if (currentState?.timerId) {
-			clearTimeout(currentState.timerId)
+			clearTimeout(currentState.timerId);
 		}
 
-		const actions = this.actionRegistry.get(actionKey)
+		const actions = this.actionRegistry.get(actionKey);
 		if (actions) {
 			runInAction(() => {
-				actions.forEach(action => action())
-			})
+				actions.forEach(action => action());
+			});
 
-			this.actionRegistry.delete(actionKey)
+			this.actionRegistry.delete(actionKey);
 		}
 
-		this.debouncedActions.delete(actionKey)
+		this.debouncedActions.delete(actionKey);
 	};
 
 	/**
@@ -1102,15 +1103,15 @@ export class MobxDebouncer {
 	 * @param groupKey - Ключ группировки
 	 */
 	cancelDebouncedActions = (key: string | number, groupKey: string = 'default'): void => {
-		const actionKey = `${groupKey}_${key}`
+		const actionKey = `${groupKey}_${key}`;
 
-		const currentState = this.debouncedActions.get(actionKey)
+		const currentState = this.debouncedActions.get(actionKey);
 		if (currentState?.timerId) {
-			clearTimeout(currentState.timerId)
+			clearTimeout(currentState.timerId);
 		}
 
-		this.actionRegistry.delete(actionKey)
-		this.debouncedActions.delete(actionKey)
+		this.actionRegistry.delete(actionKey);
+		this.debouncedActions.delete(actionKey);
 	};
 
 	/**
@@ -1119,19 +1120,19 @@ export class MobxDebouncer {
 	 * @param groupKey - Ключ группировки
 	 */
 	cancelDebouncedActionsByGroup = (groupKey: string): void => {
-		const keysToDelete: string[] = []
+		const keysToDelete: string[] = [];
 
 		for (const [key, value] of this.debouncedActions.entries()) {
 			if (key.startsWith(`${groupKey}_`)) {
-				clearTimeout(value.timerId)
-				keysToDelete.push(key)
+				clearTimeout(value.timerId);
+				keysToDelete.push(key);
 			}
 		}
 
 		keysToDelete.forEach(key => {
-			this.actionRegistry.delete(key)
-			this.debouncedActions.delete(key)
-		})
+			this.actionRegistry.delete(key);
+			this.debouncedActions.delete(key);
+		});
 	};
 
 	/**
@@ -1140,11 +1141,11 @@ export class MobxDebouncer {
 	 */
 	cancelAllDebouncedActions = (): void => {
 		for (const [_, value] of this.debouncedActions.entries()) {
-			clearTimeout(value.timerId)
+			clearTimeout(value.timerId);
 		}
 
-		this.actionRegistry.clear()
-		this.debouncedActions.clear()
+		this.actionRegistry.clear();
+		this.debouncedActions.clear();
 	};
 }
 
@@ -1182,8 +1183,8 @@ export function mobxState<T>(
 	initialValue: T
 ) {
 	return <K extends string>(name: K, options?: MobxStateOptions): MobxStateWithGetterAndSetter<K, T> => {
-		return new MobxState<K, T>(initialValue, name, options) as MobxStateWithGetterAndSetter<K, T>
-	}
+		return new MobxState<K, T>(initialValue, name, options) as MobxStateWithGetterAndSetter<K, T>;
+	};
 }
 
 /**
@@ -1240,7 +1241,7 @@ export function useMobxForm<T>(
 		observableOptions: {}
 	},
 ) {
-	return new FormState<T>(initialValues, validationSchema, options)
+	return new FormState<T>(initialValues, validationSchema, options);
 }
 
 /**
@@ -1256,7 +1257,7 @@ export function useMobxForm<T>(
  * })
  *
  */
-export const m = new ValidationSchema()
+export const m = new ValidationSchema();
 
 /** 
  * Функция для удобнейшего обновления состояния массива или объекта.
@@ -1279,22 +1280,23 @@ export const m = new ValidationSchema()
  */
 export const useMobxUpdate = <T extends Identifiable>(
 	arrayOrObjectGetter: () => T[] | Record<string, T> | T[] | Record<string, T>,
-	annotations: AnnotationsMap<{ [key: string]: any }, never> = {},
+	annotations: AnnotationsMap<{ [key: string]: any; }, never> = {},
 ): MobxUpdateInstance<T> => {
-	const updater = new MobxUpdater(annotations)
+	const updater = new MobxUpdater(annotations);
 
 	return <K extends NestedKeyOf<T>>(
 		id: string | number,
 		key: K,
-		updaterFn: UpdaterT<T, K>
+		updaterFn: UpdaterT<T, K>,
+		idKey?: string
 	) => {
 		const arrayOrObject = typeof arrayOrObjectGetter === 'function'
 			? arrayOrObjectGetter()
-			: arrayOrObjectGetter
+			: arrayOrObjectGetter;
 
-		updater.updateState(arrayOrObject, id, key, updaterFn)
-	}
-}
+		updater.updateState(arrayOrObject, id, key, updaterFn, idKey);
+	};
+};
 
 // ========================== MOBX-SAI-FETCH ==============================
 
@@ -1430,11 +1432,11 @@ export function mobxSaiFetch<T>(
 	promiseOrFunction: Promise<T> | (() => Promise<T>),
 	options: Partial<MobxSaiFetchOptions> = {}
 ): MobxSaiInstance<T> {
-	const { id, fetchIfPending = false, fetchIfHaveData = true } = options
+	const { id, fetchIfPending = false, fetchIfHaveData = true } = options;
 
 	if (id && fetchCache.has(id)) {
-		const instance = fetchCache.get(id) as MobxSaiInstance<T>
-		const { isPending, data } = instance
+		const instance = fetchCache.get(id) as MobxSaiInstance<T>;
+		const { isPending, data } = instance;
 
 		instance.options = {
 			...instance.options,
@@ -1455,60 +1457,60 @@ export function mobxSaiFetch<T>(
 				...defaultOptions.fetchAddTo,
 				...options.fetchAddTo
 			}
-		}
+		};
 
 		if (!fetchIfPending && isPending) {
-			console.warn("Fetch is already pending and fetchIfPending is false.")
-			return instance
+			console.warn("Fetch is already pending and fetchIfPending is false.");
+			return instance;
 		}
 		if (!fetchIfHaveData && data) {
-			console.warn("Data already exists and fetchIfHaveData is false.")
-			return instance
+			console.warn("Data already exists and fetchIfHaveData is false.");
+			return instance;
 		}
 		if (options.page && options.pageSetterName && options.isFetchUp) {
-			(options.page as any)[options.pageSetterName]((p: number) => p - 1)
+			(options.page as any)[options.pageSetterName]((p: number) => p - 1);
 		}
 		if (instance.fetch) {
-			var cachedArr: string | any[] = []
+			var cachedArr: string | any[] = [];
 			if (options.cacheSystem?.setCache && !instance.data && options.cacheSystem?.limit) {
 				options.cacheSystem.setCache(prev => {
 					if (prev?.length == 0 || (prev?.length < options.cacheSystem!.limit!)) {
-						return prev
+						return prev;
 					}
-					cachedArr = prev
-					return prev
-				})
+					cachedArr = prev;
+					return prev;
+				});
 				if (cachedArr?.length != 0) {
 					// @ts-ignore
-					const instanceWithCache = { ...instance, data: { ...instance?.data, [options.fetchAddTo.path]: cachedArr } }
+					const instanceWithCache = { ...instance, data: { ...instance?.data, [options.fetchAddTo.path]: cachedArr } };
 					// @ts-ignore
-					return instanceWithCache
+					return instanceWithCache;
 				}
 			}
 			// @ts-ignore
-			instance.setPromiseOrFunction(promiseOrFunction)
-			instance.fetch(promiseOrFunction)
+			instance.setPromiseOrFunction(promiseOrFunction);
+			instance.fetch(promiseOrFunction);
 		}
-		else throw new Error("Fetch method is not defined on the instance.")
-		return instance
+		else throw new Error("Fetch method is not defined on the instance.");
+		return instance;
 	}
 
-	const instance = (new MobxSaiFetch<T>(options)) as MobxSaiInstance<T>
+	const instance = (new MobxSaiFetch<T>(options)) as MobxSaiInstance<T>;
 
 	if (promiseOrFunction instanceof Promise) {
 		// @ts-ignore
-		instance.setPromiseOrFunction(promiseOrFunction)
-		if (instance.fetch) instance.fetch(() => promiseOrFunction)
-		else throw new Error("Fetch method is not defined on the instance.")
+		instance.setPromiseOrFunction(promiseOrFunction);
+		if (instance.fetch) instance.fetch(() => promiseOrFunction);
+		else throw new Error("Fetch method is not defined on the instance.");
 	} else if (typeof promiseOrFunction === "function") {
 		// @ts-ignore
-		instance.setPromiseOrFunction(promiseOrFunction)
-		if (instance.fetch) instance.fetch(promiseOrFunction)
-		else throw new Error("Fetch method is not defined on the instance.")
-	} else throw new Error("Invalid argument passed to mobxSaiFetch.")
+		instance.setPromiseOrFunction(promiseOrFunction);
+		if (instance.fetch) instance.fetch(promiseOrFunction);
+		else throw new Error("Fetch method is not defined on the instance.");
+	} else throw new Error("Invalid argument passed to mobxSaiFetch.");
 
-	if (id) fetchCache.set(id, instance)
-	return instance
+	if (id) fetchCache.set(id, instance);
+	return instance;
 }
 
 /**
@@ -1517,8 +1519,8 @@ export function mobxSaiFetch<T>(
  * @param id - id запроса (Необязательный)
  */
 export function clearMobxSaiFetchCache(id?: string): void {
-	if (id) fetchCache.delete(id)
-	else fetchCache.clear()
+	if (id) fetchCache.delete(id);
+	else fetchCache.clear();
 }
 
 // ========================== MOBX DEBOUNCER ==============================
@@ -1530,7 +1532,7 @@ export function clearMobxSaiFetchCache(id?: string): void {
  *
  * Этот стор позволяет делать за вас всю работу в области дебаунсов, прочитайте функции которые идут от mobxDebouncer)
  */
-export const mobxDebouncer = new MobxDebouncer()
+export const mobxDebouncer = new MobxDebouncer();
 
 // ========================== MOBX SAI HANDLER ==============================
 
@@ -1564,18 +1566,18 @@ export function mobxSaiHandler<T>(
 		() => [sai.data, sai.error] as const,
 		([data, error]) => {
 			if (error) {
-				onError?.(error)
-				disposer()
-				return
+				onError?.(error);
+				disposer();
+				return;
 			}
 
 			if (data && (guard ? guard(data) : true)) {
-				onSuccess(data as T)
-				disposer()
-				return
+				onSuccess(data as T);
+				disposer();
+				return;
 			}
 		}
-	)
+	);
 
-	return disposer
+	return disposer;
 }
