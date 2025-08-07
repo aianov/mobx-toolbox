@@ -282,12 +282,9 @@ class MobxUpdater {
 		updater: UpdaterT<T, K>,
 		idKey?: string
 	) {
-		alert(idKey);
 		const item = Array.isArray(arrayOrObject)
 			? arrayOrObject.find((item) => (item as any)?.[idKey || 'id'] === id)
 			: arrayOrObject[id];
-
-		alert(JSON.stringify(item));
 
 		if (item) this.deepUpdate(item, key, updater);
 	}
