@@ -188,6 +188,7 @@ class FormState<T> {
 
 		// @ts-ignore
 		if (this.options.inputResetErr) this.errors[`${field}Err`] = '';
+
 		if (this.options.instaValidate) {
 			const error = this.validationSchema.validate(this.values);
 			this.disabled = !error.success;
@@ -197,11 +198,9 @@ class FormState<T> {
 				// @ts-ignore
 				this.errors[field + 'Err'] = error.errors[field + 'Err'] || '';
 			}
-		}
-		if (value == '' && this.options.resetErrIfNoValue) {
+		} else if (value == '' && this.options.resetErrIfNoValue) {
 			// @ts-ignore
 			this.errors[field + 'Err'] = '';
-			this.disabled = Object.values(this.errors).some(error => error !== '');
 		}
 	};
 
