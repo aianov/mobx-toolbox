@@ -191,12 +191,17 @@ class FormState<T> {
 		if (this.options.instaValidate) {
 			const error = this.validationSchema.validate(this.values);
 			this.disabled = !error.success;
-			if (this.options.validateAllOnChange) this.errors = error.errors as FormErrors<T>;
-			else this.errors = { ...this.errors, [field + 'Err']: error.errors[field + 'Err'] };
+			if (this.options.validateAllOnChange) {
+				this.errors = error.errors as FormErrors<T>;
+			} else {
+				// @ts-ignore
+				this.errors[field + 'Err'] = error.errors[field + 'Err'] || '';
+			}
 		}
 		if (value == '' && this.options.resetErrIfNoValue) {
-			this.errors = { ...this.errors, [field + 'Err']: '' };
-			this.disabled = this.disabled = Object.values(this.errors).some(error => error !== '');
+			// @ts-ignore
+			this.errors[field + 'Err'] = '';
+			this.disabled = Object.values(this.errors).some(error => error !== '');
 		}
 	};
 
